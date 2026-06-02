@@ -5,13 +5,13 @@ require_once 'includes/fonctions.php';
 $page_title = "Recherche";
 include 'includes/header.php';
 
-$type_recherche = $_GET['type_recherche'] ?? '';
-$terme = trim($_GET['terme'] ?? '');
+$type_recherche    = $_GET['type_recherche'] ?? '';
+$terme             = trim($_GET['terme'] ?? '');
+$inclure_historique = isset($_GET['inclure_historique']) && $_GET['inclure_historique'] === '1';
 
 $resultats_personnes = [];
-$resultats_elements = [];
+$resultats_elements  = [];
 $message = '';
-
 
 if ($terme !== '' && $type_recherche !== '') {
     try {
@@ -41,58 +41,105 @@ if ($terme !== '' && $type_recherche !== '') {
                     OR CONCAT(p.nom, ' ', p.prenom) LIKE :terme
                 ORDER BY p.nom, p.prenom, t.numero_trousseau
             ");
-
-            $requeteRecherchePersonne->execute([
-                ':terme' => '%' . $terme . '%'
-            ]);
+            $requeteRecherchePersonne->execute([':terme' => '%' . $terme . '%']);
             $resultats_personnes = $requeteRecherchePersonne->fetchAll(PDO::FETCH_ASSOC);
 
         } elseif ($type_recherche === 'element') {
-            $requeteRechercheElement = $pdo->prepare("
-                SELECT
-                    te.type_element,
-                    rc.reference_cle,
-                    b.identifiant_interne AS badge,
-                    b.identifiant_officiel,
-                    t.id_trousseau,
-                    t.numero_trousseau,
-                    t.statut AS statut_trousseau,
-                    p.nom,
-                    p.prenom,
-                    p.service,
-                    h.date_remise,
-                    bat.nom_batiment,
-                    ea.porte_commentaire,
-                    te.statut AS statut_element
-                FROM trousseau_elements te
-                LEFT JOIN references_cles rc
-                    ON te.id_reference_cle = rc.id_reference_cle
-                LEFT JOIN badges b
-                    ON te.id_badge = b.id_badge
-                JOIN trousseaux t
-                    ON te.id_trousseau = t.id_trousseau
-                LEFT JOIN historique_trousseaux h
-                    ON t.id_trousseau = h.id_trousseau
-                    AND h.date_restitution IS NULL
-                LEFT JOIN personnes p
-                    ON h.id_personne = p.id_personne
-                LEFT JOIN element_acces ea ON (
-                    (te.type_element = 'cle'   AND ea.id_reference_cle = te.id_reference_cle)
-                    OR
-                    (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
-                )
-                LEFT JOIN batiments bat
-                    ON ea.id_batiment = bat.id_batiment
-                WHERE (rc.reference_cle LIKE :terme
-                    OR b.identifiant_interne LIKE :terme
-                    OR b.identifiant_officiel LIKE :terme)
-                    AND te.statut = 'Présent'
-                    AND te.date_retrait IS NULL
-                ORDER BY t.numero_trousseau, te.type_element
-            ");
-            $requeteRechercheElement->execute([
-                ':terme' => '%' . $terme . '%'
-            ]);
+
+            // Si historique inclus : on cherche dans tous les éléments (retirés/perdus aussi)
+            // et on joint TOUS les anciens détenteurs via historique_trousseaux
+            if ($inclure_historique) {
+                $requeteRechercheElement = $pdo->prepare("
+                    SELECT
+                        te.type_element,
+                        rc.reference_cle,
+                        b.identifiant_interne AS badge,
+                        b.identifiant_officiel,
+                        t.id_trousseau,
+                        t.numero_trousseau,
+                        t.statut AS statut_trousseau,
+                        p.nom,
+                        p.prenom,
+                        p.service,
+                        h.date_remise,
+                        h.date_restitution,
+                        te.date_ajout,
+                        te.date_retrait,
+                        bat.nom_batiment,
+                        ea.porte_commentaire,
+                        te.statut AS statut_element
+                    FROM trousseau_elements te
+                    LEFT JOIN references_cles rc
+                        ON te.id_reference_cle = rc.id_reference_cle
+                    LEFT JOIN badges b
+                        ON te.id_badge = b.id_badge
+                    JOIN trousseaux t
+                        ON te.id_trousseau = t.id_trousseau
+                    LEFT JOIN historique_trousseaux h
+                        ON t.id_trousseau = h.id_trousseau
+                    LEFT JOIN personnes p
+                        ON h.id_personne = p.id_personne
+                    LEFT JOIN element_acces ea ON (
+                        (te.type_element = 'cle'   AND ea.id_reference_cle = te.id_reference_cle)
+                        OR
+                        (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
+                    )
+                    LEFT JOIN batiments bat
+                        ON ea.id_batiment = bat.id_batiment
+                    WHERE (rc.reference_cle LIKE :terme
+                        OR b.identifiant_interne LIKE :terme
+                        OR b.identifiant_officiel LIKE :terme)
+                    ORDER BY t.numero_trousseau, h.date_remise DESC
+                ");
+            } else {
+                $requeteRechercheElement = $pdo->prepare("
+                    SELECT
+                        te.type_element,
+                        rc.reference_cle,
+                        b.identifiant_interne AS badge,
+                        b.identifiant_officiel,
+                        t.id_trousseau,
+                        t.numero_trousseau,
+                        t.statut AS statut_trousseau,
+                        p.nom,
+                        p.prenom,
+                        p.service,
+                        h.date_remise,
+                        NULL AS date_restitution,
+                        te.date_ajout,
+                        te.date_retrait,
+                        bat.nom_batiment,
+                        ea.porte_commentaire,
+                        te.statut AS statut_element
+                    FROM trousseau_elements te
+                    LEFT JOIN references_cles rc
+                        ON te.id_reference_cle = rc.id_reference_cle
+                    LEFT JOIN badges b
+                        ON te.id_badge = b.id_badge
+                    JOIN trousseaux t
+                        ON te.id_trousseau = t.id_trousseau
+                    LEFT JOIN historique_trousseaux h
+                        ON t.id_trousseau = h.id_trousseau
+                        AND h.date_restitution IS NULL
+                    LEFT JOIN personnes p
+                        ON h.id_personne = p.id_personne
+                    LEFT JOIN element_acces ea ON (
+                        (te.type_element = 'cle'   AND ea.id_reference_cle = te.id_reference_cle)
+                        OR
+                        (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
+                    )
+                    LEFT JOIN batiments bat
+                        ON ea.id_batiment = bat.id_batiment
+                    WHERE (rc.reference_cle LIKE :terme
+                        OR b.identifiant_interne LIKE :terme
+                        OR b.identifiant_officiel LIKE :terme)
+                        AND te.statut = 'Présent'
+                        AND te.date_retrait IS NULL
+                    ORDER BY t.numero_trousseau, te.type_element
+                ");
+            }
+
+            $requeteRechercheElement->execute([':terme' => '%' . $terme . '%']);
             $resultats_elements = $requeteRechercheElement->fetchAll(PDO::FETCH_ASSOC);
 
         } else {
@@ -113,12 +160,8 @@ if ($terme !== '' && $type_recherche !== '') {
         <label for="type_recherche">Type de recherche</label>
         <select id="type_recherche" name="type_recherche" required>
             <option value="">-- Choisir --</option>
-            <option value="personne" <?= $type_recherche === 'personne' ? 'selected' : '' ?>>
-                Personne
-            </option>
-            <option value="element" <?= $type_recherche === 'element' ? 'selected' : '' ?>>
-                Clé ou badge
-            </option>
+            <option value="personne" <?= $type_recherche === 'personne' ? 'selected' : '' ?>>Personne</option>
+            <option value="element"  <?= $type_recherche === 'element'  ? 'selected' : '' ?>>Clé ou badge</option>
         </select>
         <label for="terme">Recherche</label>
         <input
@@ -129,6 +172,14 @@ if ($terme !== '' && $type_recherche !== '') {
             value="<?= htmlspecialchars($terme) ?>"
             required
         >
+        <label style="font-weight:normal; display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <input type="checkbox"
+                   name="inclure_historique"
+                   value="1"
+                   style="width:auto; margin:0;"
+                   <?= $inclure_historique ? 'checked' : '' ?>>
+            Inclure l'historique (anciens détenteurs, éléments retirés/perdus)
+        </label>
         <button type="submit">Rechercher</button>
     </form>
 </div>
@@ -171,7 +222,7 @@ if ($terme !== '' && $type_recherche !== '') {
                             <td><?= htmlspecialchars($personne['numero_trousseau'] ?? 'Aucun') ?></td>
                             <td><?= htmlspecialchars($personne['statut_trousseau'] ?? '-') ?></td>
 
-                            <td><?php formaterDate($personne['date_remise'] ?? null) ?></td>
+                            <td><?= formaterDate($personne['date_remise'] ?? null) ?></td>
 
                             <td><?= afficherDecharge($personne['decharge_signee']) ?></td>
 
@@ -203,16 +254,23 @@ if ($terme !== '' && $type_recherche !== '') {
         <?php if (empty($resultats_elements)) : ?>
             <p>Aucun résultat trouvé pour "<?= htmlspecialchars($terme) ?>".</p>
         <?php else : ?>
+            <?php if ($inclure_historique) : ?>
+                <p><small>Résultats incluant l'historique complet — actifs et anciens détenteurs.</small></p>
+            <?php endif; ?>
             <table>
                 <thead>
                     <tr>
                         <th>Type</th>
                         <th>Référence</th>
                         <th>Trousseau</th>
-                        <th>Détenteur actuel</th>
+                        <th>Détenteur</th>
                         <th>Service</th>
+                        <th>Date remise</th>
+                        <?php if ($inclure_historique) : ?>
+                            <th>Date restitution</th>
+                        <?php endif; ?>
                         <th>Bâtiment</th>
-                        <th>Porte/commentaire</th>
+                        <th>Porte</th>
                         <th>Statut élément</th>
                         <th>Détail</th>
                     </tr>
@@ -227,8 +285,7 @@ if ($terme !== '' && $type_recherche !== '') {
                                 <?php else : ?>
                                     <?= htmlspecialchars($element['badge'] ?? '-') ?>
                                     <?php if (!empty($element['identifiant_officiel'])) : ?>
-                                        <br>
-                                        <small>Officiel : <?= htmlspecialchars($element['identifiant_officiel']) ?></small>
+                                        <br><small>Officiel : <?= htmlspecialchars($element['identifiant_officiel']) ?></small>
                                     <?php endif; ?>
                                 <?php endif; ?>
                             </td>
@@ -237,17 +294,21 @@ if ($terme !== '' && $type_recherche !== '') {
                                 <?php if (!empty($element['nom'])) : ?>
                                     <?= htmlspecialchars($element['prenom'] . ' ' . $element['nom']) ?>
                                 <?php else : ?>
-                                    Aucun détenteur actif
+                                    Aucun détenteur
                                 <?php endif; ?>
                             </td>
                             <td><?= htmlspecialchars($element['service'] ?? '-') ?></td>
+                            <td><?= formaterDate($element['date_remise'] ?? null) ?></td>
+                            <?php if ($inclure_historique) : ?>
+                                <td><?= formaterDate($element['date_restitution'] ?? null) ?></td>
+                            <?php endif; ?>
                             <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
                             <td><?= htmlspecialchars($element['porte_commentaire'] ?? '-') ?></td>
                             <td><?= htmlspecialchars($element['statut_element'] ?? '-') ?></td>
                             <td>
                                 <?php if (!empty($element['id_trousseau'])) : ?>
                                     <a href="fiche_trousseau.php?id=<?= (int)$element['id_trousseau'] ?>">
-                                        Voir la fiche du trousseau
+                                        Voir la fiche
                                     </a>
                                 <?php else : ?>
                                     -
