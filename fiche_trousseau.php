@@ -223,6 +223,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['declarer_element_perd
 }
 
 // Déclarer le trousseau perdu
+// Marquer le trousseau comme retrouvé
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trousseau_retrouve'])) {
+    try {
+        $requeteTrousseauRetrouve = $pdo->prepare("
+            UPDATE trousseaux
+            SET statut = 'Disponible'
+            WHERE id_trousseau = :id_trousseau AND statut = 'Perdu'
+        ");
+        $requeteTrousseauRetrouve->execute([':id_trousseau' => $id_trousseau]);
+        $message = "Trousseau marqué comme retrouvé. Statut repassé à Disponible.";
+    } catch (PDOException $e) {
+        $message = "Erreur : " . $e->getMessage();
+    }
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['declarer_trousseau_perdu'])) {
     try {
         // Mettre le trousseau en statut Perdu
@@ -633,6 +649,17 @@ try {
         >
             <input type="hidden" name="declarer_trousseau_perdu" value="1">
             <button type="submit" class="btn btn-danger">Déclarer le trousseau perdu</button>
+        </form>
+    <?php endif; ?>
+    <?php if ($trousseau['statut'] === 'Perdu') : ?>
+        <form
+            method="POST"
+            action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=informations"
+            style="display:inline-block;"
+            onsubmit="return confirm('Marquer ce trousseau comme retrouvé ?');"
+        >
+            <input type="hidden" name="trousseau_retrouve" value="1">
+            <button type="submit" class="btn btn-success">Marquer comme retrouvé</button>
         </form>
     <?php endif; ?>
 </div>

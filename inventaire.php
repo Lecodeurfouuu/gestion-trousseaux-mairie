@@ -6,6 +6,23 @@ include 'includes/header.php';
 $message = '';
 
 // Onglet actif
+// Marquer un badge comme retrouvé
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['badge_retrouve'])) {
+    $id_badge_retrouve = (int)($_POST['id_badge_retrouve'] ?? 0);
+    if ($id_badge_retrouve > 0) {
+        try {
+            $requeteBadgeRetrouve = $pdo->prepare("
+                UPDATE badges SET statut = 'Disponible'
+                WHERE id_badge = :id_badge AND statut = 'Perdu'
+            ");
+            $requeteBadgeRetrouve->execute([':id_badge' => $id_badge_retrouve]);
+            $message = "Badge marqué comme retrouvé. Statut repassé à Disponible.";
+        } catch (PDOException $e) {
+            $message = "Erreur : " . $e->getMessage();
+        }
+    }
+}
+
 $onglet_actif = $_GET['onglet'] ?? 'cles';
 
 // Ajout d'une référence de clé + ses accès bâtiments
@@ -352,6 +369,19 @@ $nb_lignes_acces = 3;
                             <td><?= htmlspecialchars($badge['type_badge'] ?? '') ?></td>
                             <td><?= htmlspecialchars($badge['statut'] ?? '') ?></td>
                             <td><?= htmlspecialchars($badge['acces_batiments'] ?? '—') ?></td>
+                            <td>
+                                <?php if ($badge['statut'] === 'Perdu') : ?>
+                                    <form method="POST" action="inventaire.php?onglet=badges"
+                                        style="display:inline-block;"
+                                        onsubmit="return confirm('Marquer ce badge comme retrouvé ?');">
+                                        <input type="hidden" name="badge_retrouve" value="1">
+                                        <input type="hidden" name="id_badge_retrouve" value="<?= (int)$badge['id_badge'] ?>">
+                                        <button type="submit" class="btn btn-success">Retrouvé</button>
+                                    </form>
+                                <?php else : ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
