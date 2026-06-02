@@ -1,0 +1,207 @@
+/* style.css - Feuille de style principale Application Gestion Badge / Clé */
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-color: #f4f5f7;
+    color: #111827;
+}
+
+header {
+    background-color: #0f172a;
+    color: white;
+    padding: 16px 24px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+nav {
+    background-color: white;
+    border-bottom: 1px solid #ddd;
+    padding: 12px 24px;
+}
+
+nav a {
+    margin-right: 20px;
+    text-decoration: none;
+    color: #334155;
+    font-weight: bold;
+}
+
+nav a:hover {
+    color: #2563eb;
+}
+
+main {
+    padding: 24px;
+}
+
+.card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 20px;
+}
+
+/* Grille pour le tableau de bord */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+}
+
+.stat-card .stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #2563eb;
+}
+
+.stat-card .stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.stat-card.alert .stat-number {
+    color: #dc2626;
+}
+
+/* Boutons */
+.btn {
+    display: inline-block;
+    background-color: #2563eb;
+    color: white;
+    padding: 8px 14px;
+    text-decoration: none;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.btn:hover {
+    background-color: #1d4ed8;
+}
+
+.btn-danger {
+    background-color: #dc2626;
+}
+
+.btn-danger:hover {
+    background-color: #b91c1c;
+}
+
+.btn-secondary {
+    background-color: #64748b;
+}
+
+.btn-secondary:hover {
+    background-color: #475569;
+}
+
+.btn-success {
+    background-color: #16a34a;
+}
+
+/* Messages */
+.message-success {
+    background-color: #f0fdf4;
+    border: 1px solid #86efac;
+    color: #166534;
+    padding: 10px 14px;
+    border-radius: 6px;
+}
+
+.message-error {
+    background-color: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+    padding: 10px 14px;
+    border-radius: 6px;
+}
+
+/* Tableaux */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+th, td {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background-color: #f8fafc;
+    color: #475569;
+}
+
+tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Formulaires */
+input, select, textarea {
+    width: 100%;
+    padding: 8px;
+    margin-top: 4px;
+    margin-bottom: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+label {
+    font-weight: bold;
+    display: block;
+}
+
+/* Onglets internes (inventaire, etc.) */
+.tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 20px;
+}
+
+.tab-lien {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    text-decoration: none;
+    transition: all .15s;
+}
+
+.tab-lien:hover {
+    color: #2563eb;
+}
+
+.tab-lien.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+}
