@@ -804,8 +804,8 @@ try {
                         <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
                         <td><?= htmlspecialchars($element['porte_commentaire'] ?? '-') ?></td>
                         <td><?= htmlspecialchars($element['statut_element'] ?? '-') ?></td>
-                        <td><?= htmlspecialchars($element['date_ajout'] ?? '-') ?></td>
-                        <td><?= htmlspecialchars($element['date_retrait'] ?? '-') ?></td>
+                        <td><?= formaterDate($element['date_ajout'] ?? '-') ?></td>
+                        <td><?= formaterDate($element['date_retrait']) ?? '-' ?></td>
                         <td><?= htmlspecialchars($element['commentaire'] ?? '-') ?></td>
                         <td>
                             <?php if ($element['type_element'] === 'badge'): ?>
