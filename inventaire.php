@@ -357,10 +357,10 @@ $nb_lignes_acces = 3;
     <div class="card">
         <h2>Liste des badges</h2>
         <table>
-            <thead><tr><th>Identifiant interne</th><th>Identifiant officiel</th><th>Type</th><th>Statut</th><th>Bâtiments / Portes</th></tr></thead>
+            <thead><tr><th>Identifiant interne</th><th>Identifiant officiel</th><th>Type</th><th>Statut</th><th>Bâtiments / Portes</th><th>Actions</th></tr></thead>
             <tbody>
                 <?php if (empty($badges)) : ?>
-                    <tr><td colspan="5">Aucun badge enregistré.</td></tr>
+                    <tr><td colspan="6">Aucun badge enregistré.</td></tr>
                 <?php else : ?>
                     <?php foreach ($badges as $badge) : ?>
                         <tr>
