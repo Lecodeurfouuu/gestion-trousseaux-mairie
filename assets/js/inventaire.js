@@ -1,24 +1,53 @@
-// inventaire.js — Préfixe automatique selon le type de badge
+// inventaire.js — Gestion des accès dynamiques
 
+// Ajouter une ligne bâtiment/porte
+function ajouterLigneAcces(tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    const tr = document.createElement('tr');
 
-document.addEventListener('DOMContentLoaded', function() {
+    let optionsBat = '<option value="">-- Aucun --</option>';
+    batiments.forEach(b => {
+        optionsBat += `<option value="${b.id}">${b.nom}</option>`;
+    });
 
-    const prefixes = { 'Ela': 'ELA-', 'Salto': 'BLEU-' };
-    const selectType = document.getElementById('type_badge');
+    const selectPorteId = 'porte-' + tbodyId + '-' + Date.now();
 
-    if (selectType) {
-        selectType.addEventListener('change', function() {
-            const champ = document.getElementById('identifiant_interne');
-            const prefixe = prefixes[this.value] ?? '';
-            const valeur = champ.value;
-            const anciensPrefixes = Object.values(prefixes);
+    tr.innerHTML = `
+        <td>
+            <select name="acces_batiment[]" onchange="mettreAJourPortes(this, '${selectPorteId}')">
+                ${optionsBat}
+            </select>
+        </td>
+        <td>
+            <select name="acces_porte[]" id="${selectPorteId}">
+                <option value="">-- Choisir d'abord un bâtiment --</option>
+            </select>
+        </td>
+        <td>
+            <button type="button"
+                onclick="this.closest('tr').remove()"
+                style="background:#dc2626;color:white;border:none;border-radius:6px;padding:4px 10px;cursor:pointer;">
+                ✕
+            </button>
+        </td>
+    `;
+    tbody.appendChild(tr);
+}
 
-            if (valeur === '' || anciensPrefixes.includes(valeur)) {
-                champ.value = prefixe;
-                champ.placeholder = prefixe ? 'Ex : ' + prefixe + '001' : 'Ex : BLEU-001, ELA-6489';
-            }
-            champ.focus();
-        });
+// Mettre à jour le select porte selon le bâtiment choisi 
+function mettreAJourPortes(selectBat, selectPorteId) {
+    const idBatiment = parseInt(selectBat.value);
+    const selectPorte = document.getElementById(selectPorteId);
+    selectPorte.innerHTML = '';
+
+    if (!idBatiment || !portesBatiment[idBatiment] || portesBatiment[idBatiment].length === 0) {
+        selectPorte.innerHTML = '<option value="">-- Aucune porte enregistrée --</option>';
+        return;
     }
 
-});
+    let options = '<option value="">-- Choisir une porte --</option>';
+    portesBatiment[idBatiment].forEach(p => {
+        options += `<option value="${p.id}">${p.nom}</option>`;
+    });
+    selectPorte.innerHTML = options;
+}
