@@ -7,6 +7,22 @@ include 'includes/header.php';
 
 $message = '';
 
+// Génération du prochain numéro de trousseau
+try {
+    $dernierNumero = $pdo->query("
+        SELECT numero_trousseau FROM trousseaux
+        ORDER BY id_trousseau DESC LIMIT 1
+    ")->fetchColumn();
+
+    if ($dernierNumero && preg_match('/TR-(\d+)$/i', $dernierNumero, $matches)) {
+        $prochainNumero = 'TR-' . str_pad((int)$matches[1] + 1, 3, '0', STR_PAD_LEFT);
+    } else {
+        $prochainNumero = 'TR-001';
+    }
+} catch (PDOException $e) {
+    $prochainNumero = 'TR-001';
+}
+
 // Ajout d'un trousseau
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $numero_trousseau = trim($_POST['numero_trousseau'] ?? '');
@@ -90,8 +106,12 @@ try {
     <h2>Ajouter un trousseau</h2>
 
     <form method="POST" action="trousseaux.php">
-      <label>Numéro de trousseau *</label>
-      <input type="text" name="numero_trousseau" placeholder="Ex : TR-001" required>
+      <label>Numéro de trousseau</label>
+      <input type="text" name="numero_trousseau"
+             value="<?= htmlspecialchars($prochainNumero) ?>"
+             readonly
+             style="background:#f4f5f7; color:#64748b; cursor:not-allowed;">
+      <small>Numéro généré automatiquement.</small>
 
       <label>Statut *</label>
       <select name="statut" required>
