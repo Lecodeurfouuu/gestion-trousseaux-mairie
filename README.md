@@ -17,10 +17,11 @@ ___
 ## Installation
 1.Copier les fichiers
 Placer le dossier 'stage' dans 'C\wamp64\www\stage\'
+Vous êtes libre de changer le nom du fichier 'stage'
 
 2.Créer la base de données
 Ouvrir phpAdmin -> 'http://localhost/phpmyadmin'
-Créer une base de données nommée `stage\_db`
+Créer une base de données nommée `stage\_db` ou le nom que vous voulez mais pensez alors a modifer les informations de $dbname dans 'config/database.php'
 Importer le script de création : `sql/create\_tables.sql`
 Importer les données de test (optionnel) : `sql/donnees\_test.sql`
 
@@ -28,7 +29,7 @@ Importer les données de test (optionnel) : `sql/donnees\_test.sql`
 Ouvrir `config/database.php` et vérifier les paramètres :
 php
 $host     = 'localhost';
-$dbname   = 'stage_db';
+$dbname   = 'stage_db'; *à modifer si vous avez nommer votre base de donnée diffférement*
 $username = 'root';
 $password = '';
 
@@ -38,7 +39,7 @@ ___
 
 ## Structure des fichiers
 
-stage/
+stage *nom modifiable* /
 ---config/
 	  ---database.php
 ---assets/
