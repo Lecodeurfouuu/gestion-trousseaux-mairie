@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_element'])) {
                 $message = "Cet élément est déjà présent dans ce trousseau.";
             } else {
                 $requeteAjoutElement = $pdo->prepare("
-                    INSERT INTO trousseau_elements 
+                    INSERT INTO trousseau_elements
                     (
                         id_trousseau,
                         type_element,
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_element'])) {
                         commentaire,
                         commentaire_horaires
                     )
-                    VALUES 
+                    VALUES
                     (
                         :id_trousseau,
                         :type_element,
@@ -367,7 +367,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['restituer_trousseau'])
         ');
 
         $requeteRestitution->execute([
-            ':date_restitution' => $date_restitution, 
+            ':date_restitution' => $date_restitution,
             ':commentaire' => $commentaire_restitution !== '' ? $commentaire_restitution : null,
             ':id_trousseau' => $id_trousseau ]);
 
@@ -404,7 +404,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['restituer_trousseau'])
 try {
     // Infos du trousseau + détenteur actuel
     $requeteInfoTrousseau = $pdo->prepare("
-        SELECT 
+        SELECT
             t.id_trousseau,
             t.numero_trousseau,
             t.statut,
@@ -416,10 +416,10 @@ try {
             h.date_restitution,
             h.decharge_signee
         FROM trousseaux t
-        LEFT JOIN historique_trousseaux h 
+        LEFT JOIN historique_trousseaux h
             ON t.id_trousseau = h.id_trousseau
             AND h.date_restitution IS NULL
-        LEFT JOIN personnes p 
+        LEFT JOIN personnes p
             ON h.id_personne = p.id_personne
         WHERE t.id_trousseau = :id_trousseau
     ");
@@ -442,7 +442,7 @@ try {
 
     // Contenu du trousseau : clés + badges + accès associés
     $requeteElementsActifs = $pdo->prepare("
-        SELECT 
+        SELECT
             te.id_trousseau_element,
             te.type_element,
             te.statut AS statut_element,
@@ -458,14 +458,14 @@ try {
             b.type_badge,
 
             bat.nom_batiment,
-            ea.porte_commentaire
+            p.nom_porte
 
         FROM trousseau_elements te
 
-        LEFT JOIN references_cles rc 
+        LEFT JOIN references_cles rc
             ON te.id_reference_cle = rc.id_reference_cle
 
-        LEFT JOIN badges b 
+        LEFT JOIN badges b
             ON te.id_badge = b.id_badge
 
         LEFT JOIN element_acces ea
@@ -475,8 +475,11 @@ try {
                 (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
             )
 
-        LEFT JOIN batiments bat 
+        LEFT JOIN batiments bat
             ON ea.id_batiment = bat.id_batiment
+
+        LEFT JOIN portes p
+            ON ea.id_porte = p.id_porte
 
         WHERE te.id_trousseau = :id_trousseau
         AND te.statut = 'Présent'
@@ -492,7 +495,7 @@ try {
 
 
     $requeteAnciensElements = $pdo->prepare("
-    SELECT 
+    SELECT
         te.id_trousseau_element,
         te.type_element,
         te.statut AS statut_element,
@@ -508,14 +511,14 @@ try {
         b.type_badge,
 
         bat.nom_batiment,
-        ea.porte_commentaire
+        p.nom_porte
 
     FROM trousseau_elements te
 
-    LEFT JOIN references_cles rc 
+    LEFT JOIN references_cles rc
         ON te.id_reference_cle = rc.id_reference_cle
 
-    LEFT JOIN badges b 
+    LEFT JOIN badges b
         ON te.id_badge = b.id_badge
 
     LEFT JOIN element_acces ea
@@ -525,8 +528,11 @@ try {
             (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
         )
 
-    LEFT JOIN batiments bat 
+    LEFT JOIN batiments bat
         ON ea.id_batiment = bat.id_batiment
+
+    LEFT JOIN portes p
+        ON ea.id_porte = p.id_porte
 
     WHERE te.id_trousseau = :id_trousseau
     AND (
@@ -802,7 +808,7 @@ try {
                             <?php endif; ?>
                         </td>
                         <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
-                        <td><?= htmlspecialchars($element['porte_commentaire'] ?? '-') ?></td>
+                        <td><?= htmlspecialchars($element['nom_porte'] ?? '-') ?></td>
                         <td><?= htmlspecialchars($element['statut_element'] ?? '-') ?></td>
                         <td><?= formaterDate($element['date_ajout'] ?? '-') ?></td>
                         <td><?= formaterDate($element['date_retrait']) ?? '-' ?></td>
@@ -883,7 +889,7 @@ try {
                             <?php endif; ?>
                         </td>
                         <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
-                        <td><?= htmlspecialchars($element['porte_commentaire'] ?? '-') ?></td>
+                        <td><?= htmlspecialchars($element['nom_porte'] ?? '-') ?></td>
                         <td><?= htmlspecialchars($element['statut_element'] ?? '-') ?></td>
                         <td><?= htmlspecialchars($element['date_ajout'] ?? '-') ?></td>
                         <td><?= htmlspecialchars($element['date_retrait'] ?? '-') ?></td>
