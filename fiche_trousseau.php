@@ -399,6 +399,33 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['restituer_trousseau'])
         $message = "Erreur lors de la restitution : " . $e->getMessage();}
 }
 
+// Modifier les horaires d'un badge dans le trousseau
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_horaires'])) {
+    $id_trousseau_element = $_POST['id_trousseau_element'] ?? null;
+    $nouveaux_horaires    = trim($_POST['nouveaux_horaires'] ?? '');
+
+    if (empty($id_trousseau_element)) {
+        $message = 'Élément introuvable.';
+    } else {
+        try {
+            $requeteModifierHoraires = $pdo->prepare("
+                UPDATE trousseau_elements
+                SET commentaire_horaires = :commentaire_horaires
+                WHERE id_trousseau_element = :id_trousseau_element
+                AND id_trousseau = :id_trousseau
+            ");
+            $requeteModifierHoraires->execute([
+                ':commentaire_horaires'  => $nouveaux_horaires !== '' ? $nouveaux_horaires : null,
+                ':id_trousseau_element' => $id_trousseau_element,
+                ':id_trousseau'         => $id_trousseau
+            ]);
+            $message = "Horaires mis à jour.";
+        } catch (PDOException $e) {
+            $message = "Erreur : " . $e->getMessage();
+        }
+    }
+}
+
 
 
 try {
@@ -815,7 +842,17 @@ try {
                         <td><?= htmlspecialchars($element['commentaire'] ?? '-') ?></td>
                         <td>
                             <?php if ($element['type_element'] === 'badge'): ?>
-                                <?= nl2br(htmlspecialchars($element['commentaire_horaires'] ?? '-')) ?>
+                                <form method="POST"
+                                    action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=contenu"
+                                    style="display:flex; gap:6px; align-items:center;">
+                                    <input type="hidden" name="modifier_horaires" value="1">
+                                    <input type="hidden" name="id_trousseau_element" value="<?= htmlspecialchars($element['id_trousseau_element']) ?>">
+                                    <input type="text" name="nouveaux_horaires"
+                                        value="<?= htmlspecialchars($element['commentaire_horaires'] ?? '') ?>"
+                                        placeholder="Ex : 08h00 - 18h00"
+                                        style="flex:1; margin:0;">
+                                    <button type="submit" class="btn btn-secondary" style="white-space:nowrap;">Modifier</button>
+                                </form>
                             <?php else: ?>
                                 -
                             <?php endif; ?>
