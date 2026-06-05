@@ -1,12 +1,14 @@
-<?php 
+<?php
 require_once 'config/database.php';
+require_once 'includes/fonctions.php';
 $page_title = 'Inventaire';
 include 'includes/header.php';
 
 $message = '';
+$onglet_actif = $_GET['onglet'] ?? 'cles';
 
-// Onglet actif
-// Marquer un badge comme retrouvé
+// Badge retrouvé
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['badge_retrouve'])) {
     $id_badge_retrouve = (int)($_POST['id_badge_retrouve'] ?? 0);
     if ($id_badge_retrouve > 0) {
@@ -16,22 +18,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['badge_retrouve'])) {
                 WHERE id_badge = :id_badge AND statut = 'Perdu'
             ");
             $requeteBadgeRetrouve->execute([':id_badge' => $id_badge_retrouve]);
-            $message = "Badge marqué comme retrouvé. Statut repassé à Disponible.";
+            $message = "Badge marqué comme retrouvé.";
         } catch (PDOException $e) {
             $message = "Erreur : " . $e->getMessage();
         }
     }
 }
 
-$onglet_actif = $_GET['onglet'] ?? 'cles';
+// Ajout d'une porte à un bâtiment
 
-// Ajout d'une référence de clé + ses accès bâtiments
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_porte'])) {
+    $id_batiment_porte = (int)($_POST['id_batiment_porte'] ?? 0);
+    $nom_porte = trim($_POST['nom_porte'] ?? '');
+
+    if ($id_batiment_porte === 0 || $nom_porte === '') {
+        $message = "Veuillez sélectionner un bâtiment et saisir un nom de porte.";
+    } else {
+        try {
+            $requeteAjoutPorte = $pdo->prepare("
+                INSERT INTO portes (id_batiment, nom_porte) VALUES (:id_batiment, :nom_porte)
+            ");
+            $requeteAjoutPorte->execute([':id_batiment' => $id_batiment_porte, ':nom_porte' => $nom_porte]);
+            $message = "Porte ajoutée avec succès.";
+        } catch (PDOException $e) {
+            $message = "Erreur : " . $e->getMessage();
+        }
+    }
+}
+
+// Modification d'une porte
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_porte'])) {
+    $id_porte = (int)($_POST['id_porte'] ?? 0);
+    $nouveau_nom = trim($_POST['nouveau_nom_porte'] ?? '');
+
+    if ($id_porte === 0 || $nouveau_nom === '') {
+        $message = "Données invalides pour la modification de la porte.";
+    } else {
+        try {
+            $requeteModifierPorte = $pdo->prepare("
+                UPDATE portes SET nom_porte = :nom_porte WHERE id_porte = :id_porte
+            ");
+            $requeteModifierPorte->execute([':nom_porte' => $nouveau_nom, ':id_porte' => $id_porte]);
+            $message = "Porte modifiée avec succès.";
+        } catch (PDOException $e) {
+            $message = "Erreur : " . $e->getMessage();
+        }
+    }
+}
+
+// Ajout d'une référence de clé + accès
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_reference'])) {
-    $reference_cle   = trim($_POST['reference_cle'] ?? '');
-    $commentaire     = trim($_POST['commentaire'] ?? '');
+    $reference_cle = trim($_POST['reference_cle'] ?? '');
+    $commentaire = trim($_POST['commentaire'] ?? '');
     $acces_batiments = $_POST['acces_batiment'] ?? [];
-    $acces_portes    = $_POST['acces_porte'] ?? [];
+    $acces_portes = $_POST['acces_porte'] ?? [];
 
     if ($reference_cle === '') {
         $message = 'Veuillez saisir une référence de clé.';
@@ -52,42 +94,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_reference']))
                 ');
                 $requeteAjoutReference->execute([
                     ':reference_cle' => $reference_cle,
-                    ':commentaire'   => $commentaire !== '' ? $commentaire : null
+                    ':commentaire' => $commentaire !== '' ? $commentaire : null
                 ]);
                 $id_nouvelle_reference = $pdo->lastInsertId();
 
                 // Insertion des accès bâtiments (lignes non vides uniquement)
                 foreach ($acces_batiments as $index => $id_batiment) {
                     if (!empty($id_batiment)) {
-                        $porte = trim($acces_portes[$index] ?? '');
+                        $id_porte = !empty($acces_portes[$index]) ? (int)$acces_portes[$index] : null;
                         $requeteAjoutAccesCle = $pdo->prepare("
-                            INSERT INTO element_acces
-                            (type_element, id_reference_cle, id_batiment, porte_commentaire)
-                            VALUES ('cle', :id_reference_cle, :id_batiment, :porte_commentaire)
+                            INSERT INTO element_acces (type_element, id_reference_cle, id_batiment, id_porte)
+                            VALUES ('cle', :id_reference_cle, :id_batiment, :id_porte)
                         ");
                         $requeteAjoutAccesCle->execute([
-                            ':id_reference_cle'  => $id_nouvelle_reference,
-                            ':id_batiment'       => $id_batiment,
-                            ':porte_commentaire' => $porte !== '' ? $porte : null
+                            ':id_reference_cle' => $id_nouvelle_reference,
+                            ':id_batiment' => $id_batiment,
+                            ':id_porte' => $id_porte
                         ]);
                     }
                 }
                 $message = 'Référence de clé ajoutée avec succès.';
             }
         } catch (PDOException $e) {
-            $message = 'Erreur lors de l\'ajout : ' . $e->getMessage();
+            $message = 'Erreur lors de l\'ajout de la référence de clé: ' . $e->getMessage();
         }
     }
 }
 
-// Ajout d'un badge + ses accès bâtiments
+// Ajout d'un badge + accès
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_badge'])) {
     $identifiant_interne  = trim($_POST['identifiant_interne'] ?? '');
     $identifiant_officiel = trim($_POST['identifiant_officiel'] ?? '');
-    $type_badge           = trim($_POST['type_badge'] ?? '');
-    $acces_batiments      = $_POST['acces_batiment'] ?? [];
-    $acces_portes         = $_POST['acces_porte'] ?? [];
+    $type_badge = trim($_POST['type_badge'] ?? '');
+    $acces_batiments = $_POST['acces_batiment'] ?? [];
+    $acces_portes = $_POST['acces_porte'] ?? [];
 
     if ($identifiant_interne === '') {
         $message = 'Veuillez saisir un identifiant interne.';
@@ -100,33 +141,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_badge'])) {
             $requeteDoublonBadge->execute([':identifiant_interne' => $identifiant_interne]);
 
             if ($requeteDoublonBadge->fetchColumn() > 0) {
-                $message = 'Ce badge existe déjà (identifiant interne déjà utilisé).';
+                $message = 'Ce badge existe déjà.';
             } else {
                 $requeteAjoutBadge = $pdo->prepare('
                     INSERT INTO badges (identifiant_interne, identifiant_officiel, type_badge, statut)
                     VALUES (:identifiant_interne, :identifiant_officiel, :type_badge, :statut)
                 ');
                 $requeteAjoutBadge->execute([
-                    ':identifiant_interne'  => $identifiant_interne,
+                    ':identifiant_interne' => $identifiant_interne,
                     ':identifiant_officiel' => $identifiant_officiel !== '' ? $identifiant_officiel : null,
-                    ':type_badge'           => $type_badge,
-                    ':statut'               => 'Disponible'
+                    ':type_badge' => $type_badge,
+                    ':statut' => 'Disponible'
                 ]);
                 $id_nouveau_badge = $pdo->lastInsertId();
 
-                // Insertion des accès bâtiments (lignes non vides uniquement)
                 foreach ($acces_batiments as $index => $id_batiment) {
                     if (!empty($id_batiment)) {
-                        $porte = trim($acces_portes[$index] ?? '');
+                        $id_porte = !empty($acces_portes[$index]) ? (int)$acces_portes[$index] : null;
                         $requeteAjoutAccesBadge = $pdo->prepare("
-                            INSERT INTO element_acces
-                            (type_element, id_badge, id_batiment, porte_commentaire)
-                            VALUES ('badge', :id_badge, :id_batiment, :porte_commentaire)
+                            INSERT INTO element_acces (type_element, id_badge, id_batiment, id_porte)
+                            VALUES ('badge', :id_badge, :id_batiment, :id_porte)
                         ");
                         $requeteAjoutAccesBadge->execute([
-                            ':id_badge'          => $id_nouveau_badge,
-                            ':id_batiment'       => $id_batiment,
-                            ':porte_commentaire' => $porte !== '' ? $porte : null
+                            ':id_badge' => $id_nouveau_badge,
+                            ':id_batiment' => $id_batiment,
+                            ':id_porte' => $id_porte
                         ]);
                     }
                 }
@@ -138,13 +177,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_badge'])) {
     }
 }
 
-
 // Ajout d'un bâtiment
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_batiment'])) {
     $nom_batiment = trim($_POST['nom_batiment'] ?? '');
-    $adresse      = trim($_POST['adresse'] ?? '');
-    $commentaire  = trim($_POST['commentaire'] ?? '');
+    $adresse = trim($_POST['adresse'] ?? '');
+    $commentaire = trim($_POST['commentaire'] ?? '');
 
     if ($nom_batiment === '') {
         $message = 'Veuillez saisir le nom du bâtiment.';
@@ -165,8 +202,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_batiment'])) 
                 ");
                 $requeteAjoutBatiment->execute([
                     ':nom_batiment' => $nom_batiment,
-                    ':adresse'      => $adresse !== '' ? $adresse : null,
-                    ':commentaire'  => $commentaire !== '' ? $commentaire : null
+                    ':adresse' => $adresse !== '' ? $adresse : null,
+                    ':commentaire' => $commentaire !== '' ? $commentaire : null
                 ]);
                 $message = 'Bâtiment ajouté avec succès.';
             }
@@ -176,11 +213,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_batiment'])) 
     }
 }
 
-
 // Récupération des données
 
 try {
-    // Références clés avec accès
+    // Références clés avec accès (bâtiment + porte)
     $references = $pdo->query("
         SELECT
             rc.id_reference_cle,
@@ -188,15 +224,14 @@ try {
             rc.commentaire,
             GROUP_CONCAT(
                 bat.nom_batiment,
-                CASE WHEN ea.porte_commentaire IS NOT NULL
-                     THEN CONCAT(' — ', ea.porte_commentaire)
-                     ELSE '' END
+                CASE WHEN p.nom_porte IS NOT NULL THEN CONCAT(' — ', p.nom_porte) ELSE '' END
                 ORDER BY bat.nom_batiment
                 SEPARATOR ' | '
             ) AS acces_batiments
         FROM references_cles rc
         LEFT JOIN element_acces ea ON rc.id_reference_cle = ea.id_reference_cle
         LEFT JOIN batiments bat ON ea.id_batiment = bat.id_batiment
+        LEFT JOIN portes p ON ea.id_porte = p.id_porte
         GROUP BY rc.id_reference_cle, rc.reference_cle, rc.commentaire
         ORDER BY rc.reference_cle
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -211,15 +246,14 @@ try {
             b.statut,
             GROUP_CONCAT(
                 bat.nom_batiment,
-                CASE WHEN ea.porte_commentaire IS NOT NULL
-                     THEN CONCAT(' — ', ea.porte_commentaire)
-                     ELSE '' END
+                CASE WHEN p.nom_porte IS NOT NULL THEN CONCAT(' — ', p.nom_porte) ELSE '' END
                 ORDER BY bat.nom_batiment
                 SEPARATOR ' | '
             ) AS acces_batiments
         FROM badges b
         LEFT JOIN element_acces ea ON b.id_badge = ea.id_badge
         LEFT JOIN batiments bat ON ea.id_batiment = bat.id_batiment
+        LEFT JOIN portes p ON ea.id_porte = p.id_porte
         GROUP BY b.id_badge, b.identifiant_interne, b.identifiant_officiel, b.type_badge, b.statut
         ORDER BY b.identifiant_interne
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -227,16 +261,35 @@ try {
     // Bâtiments
     $batiments = $pdo->query("
         SELECT id_batiment, nom_batiment, adresse, commentaire
-        FROM batiments
-        ORDER BY nom_batiment
+        FROM batiments ORDER BY nom_batiment
     ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // Toutes les portes (pour JS + affichage bâtiments)
+    $toutes_portes = $pdo->query("
+        SELECT p.id_porte, p.id_batiment, p.nom_porte, bat.nom_batiment
+        FROM portes p
+        JOIN batiments bat ON p.id_batiment = bat.id_batiment
+        ORDER BY bat.nom_batiment, p.nom_porte
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // Regrouper les portes par bâtiment pour le JS
+    $portes_par_batiment = [];
+    foreach ($toutes_portes as $porte) {
+        $portes_par_batiment[$porte['id_batiment']][] = [
+            'id' => $porte['id_porte'],
+            'nom' => $porte['nom_porte']
+        ];
+    }
+
+    // Portes par bâtiment pour l'affichage HTML
+    $portes_par_batiment_html = [];
+    foreach ($toutes_portes as $porte) {
+        $portes_par_batiment_html[$porte['id_batiment']][] = $porte;
+    }
 
 } catch (PDOException $e) {
     die("<p>Erreur SQL : " . $e->getMessage());
 }
-
-// Nombre de lignes bâtiment affichées dans les formulaires
-$nb_lignes_acces = 3;
 ?>
 
 <h1>Inventaire</h1>
@@ -265,26 +318,13 @@ $nb_lignes_acces = 3;
             <input type="text" name="reference_cle" placeholder="Ex : REF-45" required>
             <label>Commentaire</label>
             <textarea name="commentaire"></textarea>
-            <label>Bâtiments accessibles</label>
-            <small>Laissez vide les lignes non utilisées.</small>
-            <table style="margin-top:8px; margin-bottom:12px;">
-                <thead><tr><th>Bâtiment</th><th>Porte / commentaire</th></tr></thead>
-                <tbody>
-                    <?php for ($i = 0; $i < $nb_lignes_acces; $i++) : ?>
-                        <tr>
-                            <td>
-                                <select name="acces_batiment[]">
-                                    <option value="">-- Aucun --</option>
-                                    <?php foreach ($batiments as $bat) : ?>
-                                        <option value="<?= $bat['id_batiment'] ?>"><?= htmlspecialchars($bat['nom_batiment']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </td>
-                            <td><input type="text" name="acces_porte[]" placeholder="Ex : Porte bureau urbanisme"></td>
-                        </tr>
-                    <?php endfor; ?>
-                </tbody>
+            <label>Bâtiments et portes accessibles</label>
+            <table id="table-acces-cle" style="margin-top:8px; margin-bottom:8px;">
+                <thead><tr><th>Bâtiment</th><th>Porte</th><th></th></tr></thead>
+                <tbody id="tbody-acces-cle"></tbody>
             </table>
+            <button type="button" class="btn btn-secondary" onclick="ajouterLigneAcces('tbody-acces-cle')" style="margin-bottom:12px;">+ Ajouter un accès</button>
+            <br>
             <button type="submit" class="btn">Ajouter la référence</button>
         </form>
     </div>
@@ -318,38 +358,23 @@ $nb_lignes_acces = 3;
         <form method="POST" action="inventaire.php?onglet=badges">
             <input type="hidden" name="ajouter_badge" value="1">
             <label>Type de badge *</label>
-            <select name="type_badge" id="type_badge" required>
+            <select name="type_badge" required>
                 <option value="">-- Choisir --</option>
                 <option value="Ela">Ela (Noir)</option>
                 <option value="Salto">Salto (Bleu)</option>
             </select>
             <label>Identifiant interne *</label>
-            <input type="text" name="identifiant_interne" id="identifiant_interne" placeholder="Choisir d'abord le type" required>
+            <input type="text" name="identifiant_interne" placeholder="Ex : ELA-6489, BLEU-001" required>
             <label>Identifiant officiel</label>
             <input type="text" name="identifiant_officiel" placeholder="Ex : 6489 ou laisser vide">
             <small>Uniquement pour les badges Ela (Noir). Laisser vide pour les Salto.</small>
-
-            <p><label>Bâtiments accessibles</label></p>
-            
-            <small>Laissez vide les lignes non utilisées.</small>
-            <table style="margin-top:8px; margin-bottom:12px;">
-                <thead><tr><th>Bâtiment</th><th>Porte / commentaire</th></tr></thead>
-                <tbody>
-                    <?php for ($i = 0; $i < $nb_lignes_acces; $i++) : ?>
-                        <tr>
-                            <td>
-                                <select name="acces_batiment[]">
-                                    <option value="">-- Aucun --</option>
-                                    <?php foreach ($batiments as $bat) : ?>
-                                        <option value="<?= $bat['id_batiment'] ?>"><?= htmlspecialchars($bat['nom_batiment']) ?></option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </td>
-                            <td><input type="text" name="acces_porte[]" placeholder="Ex : Parking Nord"></td>
-                        </tr>
-                    <?php endfor; ?>
-                </tbody>
+            <label>Bâtiments et portes accessibles</label>
+            <table id="table-acces-badge" style="margin-top:8px; margin-bottom:8px;">
+                <thead><tr><th>Bâtiment</th><th>Porte</th><th></th></tr></thead>
+                <tbody id="tbody-acces-badge"></tbody>
             </table>
+            <button type="button" class="btn btn-secondary" onclick="ajouterLigneAcces('tbody-acces-badge')" style="margin-bottom:12px;">+ Ajouter un accès</button>
+            <br>
             <button type="submit" class="btn">Ajouter le badge</button>
         </form>
     </div>
@@ -393,6 +418,7 @@ $nb_lignes_acces = 3;
 <!-- Onglet bâtiments -->
 <div id="tab-batiments" class="tab-content" <?= $onglet_actif !== 'batiments' ? 'style="display:none;"' : '' ?>>
 
+    <!-- Formulaire ajout bâtiment -->
     <div class="card">
         <h2>Ajouter un bâtiment</h2>
         <form method="POST" action="inventaire.php?onglet=batiments">
@@ -407,27 +433,70 @@ $nb_lignes_acces = 3;
         </form>
     </div>
 
+    <!-- Formulaire ajout porte -->
     <div class="card">
-        <h2>Liste des bâtiments</h2>
-        <table>
-            <thead><tr><th>Nom</th><th>Adresse</th><th>Commentaire</th></tr></thead>
-            <tbody>
-                <?php if (empty($batiments)) : ?>
-                    <tr><td colspan="3">Aucun bâtiment enregistré.</td></tr>
-                <?php else : ?>
-                    <?php foreach ($batiments as $batiment) : ?>
-                        <tr>
-                            <td><?= htmlspecialchars($batiment['nom_batiment']) ?></td>
-                            <td><?= htmlspecialchars($batiment['adresse'] ?? '') ?></td>
-                            <td><?= htmlspecialchars($batiment['commentaire'] ?? '') ?></td>
-                        </tr>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </tbody>
-        </table>
+        <h2>Ajouter une porte</h2>
+        <form method="POST" action="inventaire.php?onglet=batiments">
+            <input type="hidden" name="ajouter_porte" value="1">
+            <label>Bâtiment *</label>
+            <select name="id_batiment_porte" required>
+                <option value="">-- Choisir un bâtiment --</option>
+                <?php foreach ($batiments as $bat) : ?>
+                    <option value="<?= $bat['id_batiment'] ?>"><?= htmlspecialchars($bat['nom_batiment']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <label>Nom de la porte *</label>
+            <input type="text" name="nom_porte" placeholder="Ex : Porte 36, Entrée principale..." required>
+            <button type="submit" class="btn">Ajouter la porte</button>
+        </form>
+    </div>
+
+    <!-- Liste bâtiments avec leurs portes -->
+    <div class="card">
+        <h2>Liste des bâtiments et portes</h2>
+        <?php if (empty($batiments)) : ?>
+            <p>Aucun bâtiment enregistré.</p>
+        <?php else : ?>
+            <?php foreach ($batiments as $batiment) : ?>
+                <div style="margin-bottom:16px; border:0.5px solid #e5e7eb; border-radius:6px; padding:12px;">
+                    <strong><?= htmlspecialchars($batiment['nom_batiment']) ?></strong>
+                    <?php if (!empty($batiment['adresse'])) : ?>
+                        — <span style="color:#64748b;"><?= htmlspecialchars($batiment['adresse']) ?></span>
+                    <?php endif; ?>
+                    <?php if (!empty($batiment['commentaire'])) : ?>
+                        <br><small><?= htmlspecialchars($batiment['commentaire']) ?></small>
+                    <?php endif; ?>
+
+                    <!-- Liste des portes -->
+                    <div style="margin-top:10px;">
+                        <?php $portes_bat = $portes_par_batiment_html[$batiment['id_batiment']] ?? []; ?>
+                        <?php if (empty($portes_bat)) : ?>
+                            <p style="color:#64748b; font-size:13px;">Aucune porte enregistrée.</p>
+                        <?php else : ?>
+                            <?php foreach ($portes_bat as $porte) : ?>
+                                <form method="POST" action="inventaire.php?onglet=batiments"
+                                    style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                                    <input type="hidden" name="modifier_porte" value="1">
+                                    <input type="hidden" name="id_porte" value="<?= $porte['id_porte'] ?>">
+                                    <input type="text" name="nouveau_nom_porte"
+                                        value="<?= htmlspecialchars($porte['nom_porte']) ?>"
+                                        style="flex:1; margin:0;">
+                                    <button type="submit" class="btn btn-secondary" style="white-space:nowrap;">Modifier</button>
+                                </form>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 </div>
 
+<!-- Données portes pour le JS -->
+<script>
+const portesBatiment = <?= json_encode($portes_par_batiment, JSON_UNESCAPED_UNICODE) ?>;
+const batiments = <?= json_encode(array_map(fn($b) => ['id' => $b['id_batiment'], 'nom' => $b['nom_batiment']], $batiments), JSON_UNESCAPED_UNICODE) ?>;
+</script>
 <script src="assets/js/inventaire.js"></script>
 
 <?php include 'includes/footer.php'; ?>
