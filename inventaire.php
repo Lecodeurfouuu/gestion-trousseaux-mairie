@@ -205,6 +205,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_batiment'])) 
                     ':adresse' => $adresse !== '' ? $adresse : null,
                     ':commentaire' => $commentaire !== '' ? $commentaire : null
                 ]);
+
+                // Ajouter automatiquement la porte "Toutes les portes"
+                $id_nouveau_batiment = $pdo->lastInsertId();
+                $requetePorteDefaut = $pdo->prepare("
+                    INSERT INTO portes (id_batiment, nom_porte) VALUES (:id_batiment, 'Toutes les portes')
+                ");
+                $requetePorteDefaut->execute([':id_batiment' => $id_nouveau_batiment]);
+
                 $message = 'Bâtiment ajouté avec succès.';
             }
         } catch (PDOException $e) {
