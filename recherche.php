@@ -66,7 +66,7 @@ if ($terme !== '' && $type_recherche !== '') {
                         te.date_ajout,
                         te.date_retrait,
                         bat.nom_batiment,
-                        ea.porte_commentaire,
+                        po.nom_porte,
                         te.statut AS statut_element
                     FROM trousseau_elements te
                     LEFT JOIN references_cles rc
@@ -86,6 +86,8 @@ if ($terme !== '' && $type_recherche !== '') {
                     )
                     LEFT JOIN batiments bat
                         ON ea.id_batiment = bat.id_batiment
+                    LEFT JOIN portes po
+                        ON ea.id_porte = po.id_porte
                     WHERE (rc.reference_cle LIKE :terme
                         OR b.identifiant_interne LIKE :terme
                         OR b.identifiant_officiel LIKE :terme)
@@ -109,7 +111,7 @@ if ($terme !== '' && $type_recherche !== '') {
                         te.date_ajout,
                         te.date_retrait,
                         bat.nom_batiment,
-                        ea.porte_commentaire,
+                        po.nom_porte,
                         te.statut AS statut_element
                     FROM trousseau_elements te
                     LEFT JOIN references_cles rc
@@ -130,6 +132,8 @@ if ($terme !== '' && $type_recherche !== '') {
                     )
                     LEFT JOIN batiments bat
                         ON ea.id_batiment = bat.id_batiment
+                    LEFT JOIN portes po
+                        ON ea.id_porte = po.id_porte
                     WHERE (rc.reference_cle LIKE :terme
                         OR b.identifiant_interne LIKE :terme
                         OR b.identifiant_officiel LIKE :terme)
@@ -303,7 +307,7 @@ if ($terme !== '' && $type_recherche !== '') {
                                 <td><?= formaterDate($element['date_restitution'] ?? null) ?></td>
                             <?php endif; ?>
                             <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
-                            <td><?= htmlspecialchars($element['porte_commentaire'] ?? '-') ?></td>
+                            <td><?= htmlspecialchars($element['nom_porte'] ?? '-') ?></td>
                             <td><?= htmlspecialchars($element['statut_element'] ?? '-') ?></td>
                             <td>
                                 <?php if (!empty($element['id_trousseau'])) : ?>
