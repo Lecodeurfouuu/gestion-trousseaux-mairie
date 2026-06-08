@@ -125,4 +125,9 @@ ___
 *HTML/CSS* (externalisé dans assets/css/style.css)
 *JavaScript* minimal (externalisé dans assets/js/)
 Serveur local *WAMP*
- 
+___
+
+## Extensions utilisées
+*Prettier code*
+*Bito AI : Improve redeability, Clean code, Style check* : https://marketplace.visualstudio.com/items?itemName=Bito.Bito
+*Copilot Review*
