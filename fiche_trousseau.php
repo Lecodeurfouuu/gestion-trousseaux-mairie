@@ -498,7 +498,6 @@ try {
             rc.reference_cle,
 
             b.identifiant_interne AS badge,
-            b.identifiant_officiel,
             b.type_badge,
 
             bat.nom_batiment,
@@ -551,8 +550,7 @@ try {
         rc.reference_cle,
 
         b.identifiant_interne AS badge,
-        b.identifiant_officiel,
-        b.type_badge,
+
 
         bat.nom_batiment,
         p.nom_porte
@@ -846,9 +844,6 @@ try {
                                 <?= htmlspecialchars($element['reference_cle'] ?? '-') ?>
                             <?php else: ?>
                                 <?= htmlspecialchars($element['badge'] ?? '-') ?>
-                                <?php if (!empty($element['identifiant_officiel'])): ?>
-                                    <br><small>Officiel : <?= htmlspecialchars($element['identifiant_officiel']) ?></small>
-                                <?php endif; ?>
                             <?php endif; ?>
                         </td>
                         <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
@@ -937,9 +932,6 @@ try {
                                 <?= htmlspecialchars($element['reference_cle'] ?? '-') ?>
                             <?php else : ?>
                                 <?= htmlspecialchars($element['badge'] ?? '-') ?>
-                                <?php if (!empty($element['identifiant_officiel'])) : ?>
-                                    <br><small>Officiel : <?= htmlspecialchars($element['identifiant_officiel']) ?></small>
-                                <?php endif; ?>
                             <?php endif; ?>
                         </td>
                         <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
