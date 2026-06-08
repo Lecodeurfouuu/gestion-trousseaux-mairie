@@ -5,15 +5,65 @@ require_once 'includes/fonctions.php';
 $page_title = "Recherche";
 include 'includes/header.php';
 
-$type_recherche    = $_GET['type_recherche'] ?? '';
-$terme             = trim($_GET['terme'] ?? '');
+$type_recherche     = $_GET['type_recherche'] ?? '';
+$terme              = trim($_GET['terme'] ?? '');
+$id_batiment_search = (int)($_GET['id_batiment'] ?? 0);
 $inclure_historique = isset($_GET['inclure_historique']) && $_GET['inclure_historique'] === '1';
 
-$resultats_personnes = [];
-$resultats_elements  = [];
+$resultats_personnes  = [];
+$resultats_elements   = [];
+$resultats_batiment   = [];
 $message = '';
 
-if ($terme !== '' && $type_recherche !== '') {
+// Récupération des bâtiments pour le select
+try {
+    $batiments = $pdo->query("SELECT id_batiment, nom_batiment FROM batiments ORDER BY nom_batiment")->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $batiments = [];
+}
+
+if ($type_recherche === 'batiment' && $id_batiment_search > 0) {
+    try {
+        $requeteRechercheBatiment = $pdo->prepare("
+            SELECT
+                p.nom,
+                p.prenom,
+                p.service,
+                t.numero_trousseau,
+                t.id_trousseau,
+                te.type_element,
+                rc.reference_cle,
+                b.identifiant_interne AS badge,
+                po.nom_porte,
+                te.commentaire_horaires
+            FROM element_acces ea
+            JOIN batiments bat ON ea.id_batiment = bat.id_batiment
+            LEFT JOIN portes po ON ea.id_porte = po.id_porte
+            LEFT JOIN references_cles rc ON ea.id_reference_cle = rc.id_reference_cle
+            LEFT JOIN badges b ON ea.id_badge = b.id_badge
+            JOIN trousseau_elements te ON (
+                (ea.type_element = 'cle'   AND te.id_reference_cle = ea.id_reference_cle)
+                OR
+                (ea.type_element = 'badge' AND te.id_badge = ea.id_badge)
+            )
+            JOIN trousseaux t ON te.id_trousseau = t.id_trousseau
+            JOIN historique_trousseaux h ON t.id_trousseau = h.id_trousseau AND h.date_restitution IS NULL
+            JOIN personnes p ON h.id_personne = p.id_personne
+            WHERE ea.id_batiment = :id_batiment
+            AND te.statut = 'Présent'
+            AND te.date_retrait IS NULL
+            AND t.statut = 'Attribué'
+            ORDER BY p.nom, p.prenom, te.type_element
+        ");
+        $requeteRechercheBatiment->execute([':id_batiment' => $id_batiment_search]);
+        $resultats_batiment = $requeteRechercheBatiment->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Erreur SQL recherche bâtiment : " . $e->getMessage());
+        $message = "Une erreur est survenue lors de la recherche. Veuillez réessayer.";
+    }
+}
+
+if ($terme !== '' && in_array($type_recherche, ['personne', 'element'])) {
     try {
         if ($type_recherche === 'personne') {
             $requeteRecherchePersonne = $pdo->prepare("
@@ -54,7 +104,6 @@ if ($terme !== '' && $type_recherche !== '') {
                         te.type_element,
                         rc.reference_cle,
                         b.identifiant_interne AS badge,
-                        b.identifiant_officiel,
                         t.id_trousseau,
                         t.numero_trousseau,
                         t.statut AS statut_trousseau,
@@ -89,8 +138,7 @@ if ($terme !== '' && $type_recherche !== '') {
                     LEFT JOIN portes po
                         ON ea.id_porte = po.id_porte
                     WHERE (rc.reference_cle LIKE :terme
-                        OR b.identifiant_interne LIKE :terme
-                        OR b.identifiant_officiel LIKE :terme)
+                        OR b.identifiant_interne LIKE :terme)
                     ORDER BY t.numero_trousseau, h.date_remise DESC
                 ");
             } else {
@@ -99,7 +147,6 @@ if ($terme !== '' && $type_recherche !== '') {
                         te.type_element,
                         rc.reference_cle,
                         b.identifiant_interne AS badge,
-                        b.identifiant_officiel,
                         t.id_trousseau,
                         t.numero_trousseau,
                         t.statut AS statut_trousseau,
@@ -135,8 +182,7 @@ if ($terme !== '' && $type_recherche !== '') {
                     LEFT JOIN portes po
                         ON ea.id_porte = po.id_porte
                     WHERE (rc.reference_cle LIKE :terme
-                        OR b.identifiant_interne LIKE :terme
-                        OR b.identifiant_officiel LIKE :terme)
+                        OR b.identifiant_interne LIKE :terme)
                         AND te.statut = 'Présent'
                         AND te.date_retrait IS NULL
                     ORDER BY t.numero_trousseau, te.type_element
@@ -162,31 +208,54 @@ if ($terme !== '' && $type_recherche !== '') {
     <h2>Effectuer une recherche</h2>
     <form method="GET" action="recherche.php">
         <label for="type_recherche">Type de recherche</label>
-        <select id="type_recherche" name="type_recherche" required>
+        <select id="type_recherche" name="type_recherche" required onchange="toggleChamps(this.value)">
             <option value="">-- Choisir --</option>
             <option value="personne" <?= $type_recherche === 'personne' ? 'selected' : '' ?>>Personne</option>
             <option value="element"  <?= $type_recherche === 'element'  ? 'selected' : '' ?>>Clé ou badge</option>
+            <option value="batiment" <?= $type_recherche === 'batiment' ? 'selected' : '' ?>>Bâtiment</option>
         </select>
-        <label for="terme">Recherche</label>
-        <input
-            id="terme"
-            type="text"
-            name="terme"
-            placeholder="Ex : Dupont, REF-45, BLEU-001"
-            value="<?= htmlspecialchars($terme) ?>"
-            required
-        >
-        <label style="font-weight:normal; display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-            <input type="checkbox"
-                   name="inclure_historique"
-                   value="1"
-                   style="width:auto; margin:0;"
-                   <?= $inclure_historique ? 'checked' : '' ?>>
-            Inclure l'historique (anciens détenteurs, éléments retirés/perdus)
-        </label>
+
+        <div id="champ-terme" <?= $type_recherche === 'batiment' ? 'style="display:none;"' : '' ?>>
+            <label for="terme">Recherche</label>
+            <input
+                id="terme"
+                type="text"
+                name="terme"
+                placeholder="Ex : Dupont, REF-45, BLEU-001"
+                value="<?= htmlspecialchars($terme) ?>"
+            >
+            <label style="font-weight:normal; display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                <input type="checkbox"
+                       name="inclure_historique"
+                       value="1"
+                       style="width:auto; margin:0;"
+                       <?= $inclure_historique ? 'checked' : '' ?>>
+                Inclure l'historique (anciens détenteurs, éléments retirés/perdus)
+            </label>
+        </div>
+
+        <div id="champ-batiment" <?= $type_recherche !== 'batiment' ? 'style="display:none;"' : '' ?>>
+            <label for="id_batiment">Bâtiment</label>
+            <select id="id_batiment" name="id_batiment">
+                <option value="">-- Choisir un bâtiment --</option>
+                <?php foreach ($batiments as $bat) : ?>
+                    <option value="<?= $bat['id_batiment'] ?>" <?= $id_batiment_search === (int)$bat['id_batiment'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($bat['nom_batiment']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
         <button type="submit">Rechercher</button>
     </form>
 </div>
+
+<script>
+function toggleChamps(type) {
+    document.getElementById('champ-terme').style.display    = (type === 'batiment') ? 'none' : 'block';
+    document.getElementById('champ-batiment').style.display = (type === 'batiment') ? 'block' : 'none';
+}
+</script>
 
 <?php afficherMessage($message); ?>
 
@@ -288,9 +357,6 @@ if ($terme !== '' && $type_recherche !== '') {
                                     <?= htmlspecialchars($element['reference_cle'] ?? '-') ?>
                                 <?php else : ?>
                                     <?= htmlspecialchars($element['badge'] ?? '-') ?>
-                                    <?php if (!empty($element['identifiant_officiel'])) : ?>
-                                        <br><small>Officiel : <?= htmlspecialchars($element['identifiant_officiel']) ?></small>
-                                    <?php endif; ?>
                                 <?php endif; ?>
                             </td>
                             <td><?= htmlspecialchars($element['numero_trousseau'] ?? '-') ?></td>
@@ -324,6 +390,68 @@ if ($terme !== '' && $type_recherche !== '') {
             </table>
         <?php endif; ?>
 
+    </div>
+<?php endif; ?>
+
+<!-- Résultats recherche bâtiment -->
+<?php if ($type_recherche === 'batiment' && $id_batiment_search > 0) : ?>
+    <?php
+    $nomBatimentChoisi = '';
+    foreach ($batiments as $bat) {
+        if ((int)$bat['id_batiment'] === $id_batiment_search) {
+            $nomBatimentChoisi = $bat['nom_batiment'];
+            break;
+        }
+    }
+    ?>
+    <div class="card">
+        <h2>Personnes ayant accès à : <?= htmlspecialchars($nomBatimentChoisi) ?></h2>
+        <?php if (empty($resultats_batiment)) : ?>
+            <p>Aucune personne n'a accès à ce bâtiment actuellement.</p>
+        <?php else : ?>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Personne</th>
+                        <th>Service</th>
+                        <th>Trousseau</th>
+                        <th>Type</th>
+                        <th>Référence / Badge</th>
+                        <th>Porte</th>
+                        <th>Horaires badge</th>
+                        <th>Détail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($resultats_batiment as $r) : ?>
+                        <tr>
+                            <td><?= htmlspecialchars($r['prenom'] . ' ' . $r['nom']) ?></td>
+                            <td><?= htmlspecialchars($r['service'] ?? '-') ?></td>
+                            <td><?= htmlspecialchars($r['numero_trousseau']) ?></td>
+                            <td><?= htmlspecialchars($r['type_element']) ?></td>
+                            <td>
+                                <?php if ($r['type_element'] === 'cle') : ?>
+                                    <?= htmlspecialchars($r['reference_cle'] ?? '-') ?>
+                                <?php else : ?>
+                                    <?= htmlspecialchars($r['badge'] ?? '-') ?>
+                                <?php endif; ?>
+                            </td>
+                            <td><?= htmlspecialchars($r['nom_porte'] ?? '—') ?></td>
+                            <td>
+                                <?php if ($r['type_element'] === 'badge' && !empty($r['commentaire_horaires'])) : ?>
+                                    <?= htmlspecialchars($r['commentaire_horaires']) ?>
+                                <?php else : ?>
+                                    -
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <a href="fiche_trousseau.php?id=<?= (int)$r['id_trousseau'] ?>">Voir la fiche</a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
     </div>
 <?php endif; ?>
 
