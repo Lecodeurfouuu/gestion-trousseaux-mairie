@@ -70,10 +70,10 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_badge'])) {
 
 // Ajouter un accès à une clé ou un badge existant
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant'])) {
-    $type_element      = $_POST['type_element_acces'] ?? '';
-    $id_element        = (int)($_POST['id_element_acces_existant'] ?? 0);
+    $type_element = $_POST['type_element_acces'] ?? '';
+    $id_element = (int)($_POST['id_element_acces_existant'] ?? 0);
     $id_batiment_acces = (int)($_POST['id_batiment_acces'] ?? 0);
-    $id_porte_acces    = (int)($_POST['id_porte_acces'] ?? 0);
+    $id_porte_acces = (int)($_POST['id_porte_acces'] ?? 0);
 
     if ($id_element > 0 && $id_batiment_acces > 0) {
         try {
@@ -94,10 +94,10 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant
                 ");
             }
             $requeteDoublonAcces->execute([
-                ':id_element'  => $id_element,
+                ':id_element' => $id_element,
                 ':id_batiment' => $id_batiment_acces,
-                ':id_porte'    => $id_porte_acces > 0 ? $id_porte_acces : null,
-                ':id_porte2'   => $id_porte_acces
+                ':id_porte' => $id_porte_acces > 0 ? $id_porte_acces : null,
+                ':id_porte2' => $id_porte_acces
             ]);
 
             if ($requeteDoublonAcces->fetchColumn() > 0) {
@@ -115,9 +115,9 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant
                     ");
                 }
                 $requeteAjouterAccesExistant->execute([
-                    ':id_element'  => $id_element,
+                    ':id_element' => $id_element,
                     ':id_batiment' => $id_batiment_acces,
-                    ':id_porte'    => $id_porte_acces > 0 ? $id_porte_acces : null
+                    ':id_porte' => $id_porte_acces > 0 ? $id_porte_acces : null
                 ]);
                 $message = "Accès ajouté avec succès.";
             }
