@@ -226,13 +226,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['declarer_element_perd
 // Marquer le trousseau comme retrouvé
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trousseau_retrouve'])) {
     try {
+        // Vérifier s'il y avait un détenteur actif avant la perte
+        $requeteVerifDetenteur = $pdo->prepare("
+            SELECT COUNT(*) FROM historique_trousseaux
+            WHERE id_trousseau = :id_trousseau AND date_restitution IS NULL
+        ");
+        $requeteVerifDetenteur->execute([':id_trousseau' => $id_trousseau]);
+        $aDetenteur = $requeteVerifDetenteur->fetchColumn() > 0;
+
+        // Si détenteur actif -> Attribué, sinon -> Disponible
+        $nouveauStatut = $aDetenteur ? 'Attribué' : 'Disponible';
+
         $requeteTrousseauRetrouve = $pdo->prepare("
-            UPDATE trousseaux
-            SET statut = 'Disponible'
+            UPDATE trousseaux SET statut = :statut
             WHERE id_trousseau = :id_trousseau AND statut = 'Perdu'
         ");
-        $requeteTrousseauRetrouve->execute([':id_trousseau' => $id_trousseau]);
-        $message = "Trousseau marqué comme retrouvé. Statut repassé à Disponible.";
+        $requeteTrousseauRetrouve->execute([
+            ':statut'       => $nouveauStatut,
+            ':id_trousseau' => $id_trousseau
+        ]);
+
+        $message = $aDetenteur
+            ? "Trousseau retrouvé — repassé en Attribué, la personne le récupère automatiquement."
+            : "Trousseau retrouvé — repassé en Disponible.";
+
     } catch (PDOException $e) {
         $message = "Erreur : " . $e->getMessage();
     }
