@@ -6,6 +6,126 @@ include 'includes/header.php';
 
 $message = '';
 $onglet_actif = $_GET['onglet'] ?? 'cles';
+$gerer_cle = (int)($_GET['gerer_cle'] ?? 0);
+$gerer_badge = (int)($_GET['gerer_badge'] ?? 0);
+
+// Supprimer un accès
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['supprimer_acces'])) {
+    $id_element_acces = (int)($_POST['id_element_acces'] ?? 0);
+    if ($id_element_acces > 0) {
+        try {
+            $requeteSupprimerAcces = $pdo->prepare("DELETE FROM element_acces WHERE id_element_acces = :id");
+            $requeteSupprimerAcces->execute([':id' => $id_element_acces]);
+            $message = "Accès supprimé avec succès.";
+        } catch (PDOException $e) {
+            $message = "Erreur : " . $e->getMessage();
+        }
+    }
+}
+
+// Modifier le nom/commentaire d'une référence de clé
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_reference'])) {
+    $id_reference_cle = (int)($_POST['id_reference_cle'] ?? 0);
+    $nouvelle_nom = trim($_POST['nouvelle_reference'] ?? '');
+    $nouveau_commentaire = trim($_POST['nouveau_commentaire'] ?? '');
+    if ($id_reference_cle > 0 && $nouveau_nom !== '') {
+        try {
+            $requeteModifierReference = $pdo->prepare("
+                UPDATE references_cles SET reference_cle = :reference_cle, commentaire = :commentaire
+                WHERE id_reference_cle = :id_reference_cle
+            ");
+            $requeteModifierReference->execute([
+                ':reference_cle' => $nouvelle_reference,
+                ':commentaire' => $nouveau_commentaire,
+                ':id' => $id_reference_cle
+            ]);
+            $message = "Référence modifiée.";
+        } catch (PDOException $e) {
+            $message = "Erreur : " . $e->getMessage();
+        }
+    }
+}
+
+// Modifier l'identifiant d'un badge
+if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_badge'])) {
+    $id_badge = (int)($_POST['id_badge'] ?? 0);
+    $nouvel_identifiant_interne = trim($_POST['nouvel_identifiant_interne'] ?? '');
+
+    if ($id_badge > 0 && $nouvel_identifiant_interne !== '') {
+        try {
+            $requeteModifierBadge = $pdo->prepare("
+                UPDATE badges SET identifiant_interne = :identifiant
+                WHERE id_badge = :id
+            ");
+            $requeteModifierBadge->execute([
+                ':identifiant' => $nouvel_identifiant_interne,
+                ':id' => $id_badge
+            ]);
+            $message = "Badge modifié.";
+        } catch (PDOException $e) {
+            $message = "Erreur : " . $e->getMessage();
+        }
+    }
+}
+
+// Ajouter un accès à une clé ou un badge existant
+if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant'])) {
+    $type_element      = $_POST['type_element_acces'] ?? '';
+    $id_element        = (int)($_POST['id_element_acces_existant'] ?? 0);
+    $id_batiment_acces = (int)($_POST['id_batiment_acces'] ?? 0);
+    $id_porte_acces    = (int)($_POST['id_porte_acces'] ?? 0);
+
+    if ($id_element > 0 && $id_batiment_acces > 0) {
+        try {
+            // Vérification doublon
+            if ($type_element === 'cle') {
+                $requeteDoublonAcces = $pdo->prepare("
+                    SELECT COUNT(*) FROM element_acces
+                    WHERE id_reference_cle = :id_element
+                    AND id_batiment = :id_batiment
+                    AND (id_porte = :id_porte OR (id_porte IS NULL AND :id_porte2 = 0))
+                ");
+            } else {
+                $requeteDoublonAcces = $pdo->prepare("
+                    SELECT COUNT(*) FROM element_acces
+                    WHERE id_badge = :id_element
+                    AND id_batiment = :id_batiment
+                    AND (id_porte = :id_porte OR (id_porte IS NULL AND :id_porte2 = 0))
+                ");
+            }
+            $requeteDoublonAcces->execute([
+                ':id_element'  => $id_element,
+                ':id_batiment' => $id_batiment_acces,
+                ':id_porte'    => $id_porte_acces > 0 ? $id_porte_acces : null,
+                ':id_porte2'   => $id_porte_acces
+            ]);
+
+            if ($requeteDoublonAcces->fetchColumn() > 0) {
+                $message = "Cet accès existe déjà.";
+            } else {
+                if ($type_element === 'cle') {
+                    $requeteAjouterAccesExistant = $pdo->prepare("
+                        INSERT INTO element_acces (type_element, id_reference_cle, id_batiment, id_porte)
+                        VALUES ('cle', :id_element, :id_batiment, :id_porte)
+                    ");
+                } else {
+                    $requeteAjouterAccesExistant = $pdo->prepare("
+                        INSERT INTO element_acces (type_element, id_badge, id_batiment, id_porte)
+                        VALUES ('badge', :id_element, :id_batiment, :id_porte)
+                    ");
+                }
+                $requeteAjouterAccesExistant->execute([
+                    ':id_element'  => $id_element,
+                    ':id_batiment' => $id_batiment_acces,
+                    ':id_porte'    => $id_porte_acces > 0 ? $id_porte_acces : null
+                ]);
+                $message = "Accès ajouté avec succès.";
+            }
+        } catch (PDOException $e) {
+            $message = "Erreur : " . $e->getMessage();
+        }
+    }
+}
 
 // Badge retrouvé
 
@@ -125,7 +245,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_reference']))
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_badge'])) {
     $identifiant_interne  = trim($_POST['identifiant_interne'] ?? '');
-    $identifiant_officiel = trim($_POST['identifiant_officiel'] ?? '');
     $type_badge = trim($_POST['type_badge'] ?? '');
     $acces_batiments = $_POST['acces_batiment'] ?? [];
     $acces_portes = $_POST['acces_porte'] ?? [];
@@ -144,12 +263,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_badge'])) {
                 $message = 'Ce badge existe déjà.';
             } else {
                 $requeteAjoutBadge = $pdo->prepare('
-                    INSERT INTO badges (identifiant_interne, identifiant_officiel, type_badge, statut)
-                    VALUES (:identifiant_interne, :identifiant_officiel, :type_badge, :statut)
+                    INSERT INTO badges (identifiant_interne, type_badge, statut)
+                    VALUES (:identifiant_interne, :type_badge, :statut)
                 ');
                 $requeteAjoutBadge->execute([
                     ':identifiant_interne' => $identifiant_interne,
-                    ':identifiant_officiel' => $identifiant_officiel !== '' ? $identifiant_officiel : null,
                     ':type_badge' => $type_badge,
                     ':statut' => 'Disponible'
                 ]);
@@ -249,7 +367,6 @@ try {
         SELECT
             b.id_badge,
             b.identifiant_interne,
-            b.identifiant_officiel,
             b.type_badge,
             b.statut,
             GROUP_CONCAT(
@@ -262,7 +379,7 @@ try {
         LEFT JOIN element_acces ea ON b.id_badge = ea.id_badge
         LEFT JOIN batiments bat ON ea.id_batiment = bat.id_batiment
         LEFT JOIN portes p ON ea.id_porte = p.id_porte
-        GROUP BY b.id_badge, b.identifiant_interne, b.identifiant_officiel, b.type_badge, b.statut
+        GROUP BY b.id_badge, b.identifiant_interne, b.type_badge, b.statut
         ORDER BY b.identifiant_interne
     ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -293,6 +410,44 @@ try {
     $portes_par_batiment_html = [];
     foreach ($toutes_portes as $porte) {
         $portes_par_batiment_html[$porte['id_batiment']][] = $porte;
+    }
+
+    // Accès de la clé en cours de gestion
+    $acces_cle_geree = [];
+    $info_cle_geree = null;
+    if ($gerer_cle > 0) {
+        $requeteInfoCle = $pdo->prepare("SELECT * FROM references_cles WHERE id_reference_cle = :id");
+        $requeteInfoCle->execute([':id' => $gerer_cle]);
+        $info_cle_geree = $requeteInfoCle->fetch(PDO::FETCH_ASSOC);
+
+        $requeteAccesCle = $pdo->prepare("
+            SELECT ea.id_element_acces, bat.nom_batiment, p.nom_porte
+            FROM element_acces ea
+            JOIN batiments bat ON ea.id_batiment = bat.id_batiment
+            LEFT JOIN portes p ON ea.id_porte = p.id_porte
+            WHERE ea.id_reference_cle = :id
+        ");
+        $requeteAccesCle->execute([':id' => $gerer_cle]);
+        $acces_cle_geree = $requeteAccesCle->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Accès du badge en cours de gestion
+    $acces_badge_geree = [];
+    $info_badge_geree = null;
+    if ($gerer_badge > 0) {
+        $requeteInfoBadge = $pdo->prepare("SELECT * FROM badges WHERE id_badge = :id");
+        $requeteInfoBadge->execute([':id' => $gerer_badge]);
+        $info_badge_geree = $requeteInfoBadge->fetch(PDO::FETCH_ASSOC);
+
+        $requeteAccesBadge = $pdo->prepare("
+            SELECT ea.id_element_acces, bat.nom_batiment, p.nom_porte
+            FROM element_acces ea
+            JOIN batiments bat ON ea.id_batiment = bat.id_batiment
+            LEFT JOIN portes p ON ea.id_porte = p.id_porte
+            WHERE ea.id_badge = :id
+        ");
+        $requeteAccesBadge->execute([':id' => $gerer_badge]);
+        $acces_badge_geree = $requeteAccesBadge->fetchAll(PDO::FETCH_ASSOC);
     }
 
 } catch (PDOException $e) {
@@ -340,16 +495,19 @@ try {
     <div class="card">
         <h2>Liste des références de clés</h2>
         <table>
-            <thead><tr><th>Référence</th><th>Bâtiments / Portes</th><th>Commentaire</th></tr></thead>
+            <thead><tr><th>Référence</th><th>Bâtiments / Portes</th><th>Commentaire</th><th>Action</th></tr></thead>
             <tbody>
                 <?php if (empty($references)) : ?>
-                    <tr><td colspan="3">Aucune référence de clé enregistrée.</td></tr>
+                    <tr><td colspan="4">Aucune référence de clé enregistrée.</td></tr>
                 <?php else : ?>
                     <?php foreach ($references as $ref) : ?>
                         <tr>
                             <td><?= htmlspecialchars($ref['reference_cle']) ?></td>
                             <td><?= htmlspecialchars($ref['acces_batiments'] ?? '—') ?></td>
                             <td><?= htmlspecialchars($ref['commentaire'] ?? '') ?></td>
+                            <td>
+                                <a href="inventaire.php?onglet=cles&gerer_cle=<?= $ref['id_reference_cle'] ?>" class="btn btn-secondary">Gérer</a>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
@@ -357,6 +515,75 @@ try {
         </table>
     </div>
 </div>
+
+<!-- Panneau de gestion d'une clé -->
+    <?php if ($gerer_cle > 0 && $info_cle_geree) : ?>
+    <div class="card">
+        <h2>Gérer : <?= htmlspecialchars($info_cle_geree['reference_cle']) ?></h2>
+
+        <!-- Modifier les infos -->
+        <h3>Modifier les informations</h3>
+        <form method="POST" action="inventaire.php?onglet=cles&gerer_cle=<?= $gerer_cle ?>">
+            <input type="hidden" name="modifier_reference" value="1">
+            <input type="hidden" name="id_reference_cle" value="<?= $gerer_cle ?>">
+            <label>Référence</label>
+            <input type="text" name="nouveau_nom_reference" value="<?= htmlspecialchars($info_cle_geree['reference_cle']) ?>" required>
+            <label>Commentaire</label>
+            <textarea name="nouveau_commentaire_reference"><?= htmlspecialchars($info_cle_geree['commentaire'] ?? '') ?></textarea>
+            <button type="submit" class="btn">Enregistrer</button>
+        </form>
+
+        <!-- Accès actuels -->
+        <h3 style="margin-top:14px;">Accès bâtiments / portes</h3>
+        <?php if (empty($acces_cle_geree)) : ?>
+            <p>Aucun accès enregistré.</p>
+        <?php else : ?>
+            <table>
+                <thead><tr><th>Bâtiment</th><th>Porte</th><th>Action</th></tr></thead>
+                <tbody>
+                    <?php foreach ($acces_cle_geree as $acces) : ?>
+                        <tr>
+                            <td><?= htmlspecialchars($acces['nom_batiment']) ?></td>
+                            <td><?= htmlspecialchars($acces['nom_porte'] ?? '—') ?></td>
+                            <td>
+                                <form method="POST" action="inventaire.php?onglet=cles&gerer_cle=<?= $gerer_cle ?>"
+                                    onsubmit="return confirm('Supprimer cet accès ?');">
+                                    <input type="hidden" name="supprimer_acces" value="1">
+                                    <input type="hidden" name="id_element_acces" value="<?= $acces['id_element_acces'] ?>">
+                                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <!-- Ajouter un accès -->
+        <h3 style="margin-top:14px;">Ajouter un accès</h3>
+        <form method="POST" action="inventaire.php?onglet=cles&gerer_cle=<?= $gerer_cle ?>">
+            <input type="hidden" name="ajouter_acces_existant" value="1">
+            <input type="hidden" name="type_element_acces" value="cle">
+            <input type="hidden" name="id_element_acces_existant" value="<?= $gerer_cle ?>">
+            <label>Bâtiment</label>
+            <select name="id_batiment_acces" id="bat-select-cle" onchange="mettreAJourPortes(this, 'porte-select-cle')" required>
+                <option value="">-- Choisir --</option>
+                <?php foreach ($batiments as $bat) : ?>
+                    <option value="<?= $bat['id_batiment'] ?>"><?= htmlspecialchars($bat['nom_batiment']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <label>Porte</label>
+            <select name="id_porte_acces" id="porte-select-cle">
+                <option value="">-- Choisir d'abord un bâtiment --</option>
+            </select>
+            <button type="submit" class="btn" style="margin-top:12px;">Ajouter</button>
+        </form>
+
+        <div style="margin-top:12px;">
+            <a href="inventaire.php?onglet=cles" class="btn btn-secondary">Fermer</a>
+        </div>
+    </div>
+    <?php endif; ?>
 
 <!-- Onglet badges -->
 <div id="tab-badges" class="tab-content" <?= $onglet_actif !== 'badges' ? 'style="display:none;"' : '' ?>>
@@ -373,9 +600,6 @@ try {
             </select>
             <label>Identifiant interne *</label>
             <input type="text" name="identifiant_interne" placeholder="Ex : ELA-6489, BLEU-001" required>
-            <label>Identifiant officiel</label>
-            <input type="text" name="identifiant_officiel" placeholder="Ex : 6489 ou laisser vide">
-            <small>Uniquement pour les badges Ela (Noir). Laisser vide pour les Salto.</small>
             <label>Bâtiments et portes accessibles</label>
             <table id="table-acces-badge" style="margin-top:8px; margin-bottom:8px;">
                 <thead><tr><th>Bâtiment</th><th>Porte</th><th></th></tr></thead>
@@ -390,7 +614,7 @@ try {
     <div class="card">
         <h2>Liste des badges</h2>
         <table>
-            <thead><tr><th>Identifiant interne</th><th>Identifiant officiel</th><th>Type</th><th>Statut</th><th>Bâtiments / Portes</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Identifiant interne</th><th>Type</th><th>Statut</th><th>Bâtiments / Portes</th><th>Actions</th></tr></thead>
             <tbody>
                 <?php if (empty($badges)) : ?>
                     <tr><td colspan="6">Aucun badge enregistré.</td></tr>
@@ -398,11 +622,11 @@ try {
                     <?php foreach ($badges as $badge) : ?>
                         <tr>
                             <td><?= htmlspecialchars($badge['identifiant_interne']) ?></td>
-                            <td><?= htmlspecialchars($badge['identifiant_officiel'] ?? '—') ?></td>
                             <td><?= htmlspecialchars($badge['type_badge'] ?? '') ?></td>
                             <td><?= htmlspecialchars($badge['statut'] ?? '') ?></td>
                             <td><?= htmlspecialchars($badge['acces_batiments'] ?? '—') ?></td>
                             <td>
+                                <a href="inventaire.php?onglet=badges&gerer_badge=<?= $badge['id_badge'] ?>" class="btn btn-secondary">Gérer</a>
                                 <?php if ($badge['statut'] === 'Perdu') : ?>
                                     <form method="POST" action="inventaire.php?onglet=badges"
                                         style="display:inline-block;"
@@ -411,8 +635,6 @@ try {
                                         <input type="hidden" name="id_badge_retrouve" value="<?= (int)$badge['id_badge'] ?>">
                                         <button type="submit" class="btn btn-success">Retrouvé</button>
                                     </form>
-                                <?php else : ?>
-                                    —
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -421,7 +643,73 @@ try {
             </tbody>
         </table>
     </div>
-</div>
+
+    <!-- Panneau de gestion d'un badge -->
+    <?php if ($gerer_badge > 0 && $info_badge_geree) : ?>
+    <div class="card">
+        <h2>Gérer : <?= htmlspecialchars($info_badge_geree['identifiant_interne']) ?></h2>
+        <!-- Modifier les infos -->
+        <h3>Modifier les informations</h3>
+        <form method="POST" action="inventaire.php?onglet=badges&gerer_badge=<?= $gerer_badge ?>">
+            <input type="hidden" name="modifier_badge_info" value="1">
+            <input type="hidden" name="id_badge" value="<?= $gerer_badge ?>">
+            <label>Identifiant interne</label>
+            <input type="text" name="nouveau_identifiant" value="<?= htmlspecialchars($info_badge_geree['identifiant_interne']) ?>" required>
+            <button type="submit" class="btn">Enregistrer</button>
+        </form>
+
+        <!-- Accès actuels -->
+        <h3 style="margin-top:14px;">Accès bâtiments / portes</h3>
+        <?php if (empty($acces_badge_geree)) : ?>
+            <p>Aucun accès enregistré.</p>
+        <?php else : ?>
+            <table>
+                <thead><tr><th>Bâtiment</th><th>Porte</th><th>Action</th></tr></thead>
+                <tbody>
+                    <?php foreach ($acces_badge_geree as $acces) : ?>
+                        <tr>
+                            <td><?= htmlspecialchars($acces['nom_batiment']) ?></td>
+                            <td><?= htmlspecialchars($acces['nom_porte'] ?? '—') ?></td>
+                            <td>
+                                <form method="POST" action="inventaire.php?onglet=badges&gerer_badge=<?= $gerer_badge ?>"
+                                    onsubmit="return confirm('Supprimer cet accès ?');">
+                                    <input type="hidden" name="supprimer_acces" value="1">
+                                    <input type="hidden" name="id_element_acces" value="<?= $acces['id_element_acces'] ?>">
+                                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <!-- Ajouter un accès -->
+        <h3 style="margin-top:14px;">Ajouter un accès</h3>
+        <form method="POST" action="inventaire.php?onglet=badges&gerer_badge=<?= $gerer_badge ?>">
+            <input type="hidden" name="ajouter_acces_existant" value="1">
+            <input type="hidden" name="type_element_acces" value="badge">
+            <input type="hidden" name="id_element_acces_existant" value="<?= $gerer_badge ?>">
+            <label>Bâtiment</label>
+            <select name="id_batiment_acces" id="bat-select-badge" onchange="mettreAJourPortes(this, 'porte-select-badge')" required>
+                <option value="">-- Choisir --</option>
+                <?php foreach ($batiments as $bat) : ?>
+                    <option value="<?= $bat['id_batiment'] ?>"><?= htmlspecialchars($bat['nom_batiment']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <label>Porte</label>
+            <select name="id_porte_acces" id="porte-select-badge" required>
+                <option value="">-- Choisir d'abord un bâtiment --</option>
+            </select>
+            <button type="submit" class="btn" style="margin-top:8px;">Ajouter</button>
+        </form>
+
+        <div style="margin-top:12px;">
+            <a href="inventaire.php?onglet=badges" class="btn btn-secondary">Fermer</a>
+        </div>
+    </div>
+    <?php endif; ?>
+    </div>
 
 <!-- Onglet bâtiments -->
 <div id="tab-batiments" class="tab-content" <?= $onglet_actif !== 'batiments' ? 'style="display:none;"' : '' ?>>
