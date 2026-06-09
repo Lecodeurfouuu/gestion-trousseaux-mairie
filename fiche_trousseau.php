@@ -494,39 +494,31 @@ try {
             te.date_retrait,
             te.commentaire,
             te.commentaire_horaires,
-
             rc.reference_cle,
-
             b.identifiant_interne AS badge,
             b.type_badge,
-
-            bat.nom_batiment,
-            p.nom_porte
-
+            GROUP_CONCAT(
+                bat.nom_batiment,
+                CASE WHEN p.nom_porte IS NOT NULL THEN CONCAT(' — ', p.nom_porte) ELSE '' END
+                ORDER BY bat.nom_batiment
+                SEPARATOR ' | '
+            ) AS acces_batiments
         FROM trousseau_elements te
-
-        LEFT JOIN references_cles rc
-            ON te.id_reference_cle = rc.id_reference_cle
-
-        LEFT JOIN badges b
-            ON te.id_badge = b.id_badge
-
-        LEFT JOIN element_acces ea
-            ON (
-                (te.type_element = 'cle' AND ea.id_reference_cle = te.id_reference_cle)
-                OR
-                (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
-            )
-
-        LEFT JOIN batiments bat
-            ON ea.id_batiment = bat.id_batiment
-
-        LEFT JOIN portes p
-            ON ea.id_porte = p.id_porte
-
+        LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
+        LEFT JOIN badges b ON te.id_badge = b.id_badge
+        LEFT JOIN element_acces ea ON (
+            (te.type_element = 'cle'   AND ea.id_reference_cle = te.id_reference_cle)
+            OR
+            (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
+        )
+        LEFT JOIN batiments bat ON ea.id_batiment = bat.id_batiment
+        LEFT JOIN portes p ON ea.id_porte = p.id_porte
         WHERE te.id_trousseau = :id_trousseau
         AND te.statut = 'Présent'
         AND te.date_retrait IS NULL
+        GROUP BY te.id_trousseau_element, te.type_element, te.statut, te.date_ajout,
+                 te.date_retrait, te.commentaire, te.commentaire_horaires,
+                 rc.reference_cle, b.identifiant_interne, b.type_badge
         ORDER BY te.type_element, rc.reference_cle, b.identifiant_interne
     ");
 
@@ -538,51 +530,22 @@ try {
 
 
     $requeteAnciensElements = $pdo->prepare("
-    SELECT
-        te.id_trousseau_element,
-        te.type_element,
-        te.statut AS statut_element,
-        te.date_ajout,
-        te.date_retrait,
-        te.commentaire,
-        te.commentaire_horaires,
-
-        rc.reference_cle,
-
-        b.identifiant_interne AS badge,
-
-
-        bat.nom_batiment,
-        p.nom_porte
-
-    FROM trousseau_elements te
-
-    LEFT JOIN references_cles rc
-        ON te.id_reference_cle = rc.id_reference_cle
-
-    LEFT JOIN badges b
-        ON te.id_badge = b.id_badge
-
-    LEFT JOIN element_acces ea
-        ON (
-            (te.type_element = 'cle' AND ea.id_reference_cle = te.id_reference_cle)
-            OR
-            (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
-        )
-
-    LEFT JOIN batiments bat
-        ON ea.id_batiment = bat.id_batiment
-
-    LEFT JOIN portes p
-        ON ea.id_porte = p.id_porte
-
-    WHERE te.id_trousseau = :id_trousseau
-    AND (
-        te.statut <> 'Présent'
-        OR te.date_retrait IS NOT NULL
-    )
-
-    ORDER BY te.date_retrait DESC, te.type_element");
+        SELECT
+            te.id_trousseau_element,
+            te.type_element,
+            te.statut AS statut_element,
+            te.date_ajout,
+            te.date_retrait,
+            te.commentaire,
+            rc.reference_cle,
+            b.identifiant_interne AS badge
+        FROM trousseau_elements te
+        LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
+        LEFT JOIN badges b ON te.id_badge = b.id_badge
+        WHERE te.id_trousseau = :id_trousseau
+        AND (te.statut <> 'Présent' OR te.date_retrait IS NOT NULL)
+        ORDER BY te.date_retrait DESC, te.type_element
+    ");
 
     $requeteAnciensElements->execute([
     ':id_trousseau' => $id_trousseau]);
@@ -820,11 +783,9 @@ try {
             <tr>
                 <th>Type</th>
                 <th>Référence / ID</th>
-                <th>Bâtiment</th>
-                <th>Porte / commentaire</th>
+                <th>Bâtiments / Portes</th>
                 <th>Statut</th>
                 <th>Date ajout</th>
-                <th>Date retrait</th>
                 <th>Commentaire</th>
                 <th>Horaires badge</th>
                 <th>Action</th>
@@ -833,7 +794,7 @@ try {
         <tbody>
             <?php if (empty($elements)): ?>
                 <tr>
-                    <td colspan="10">Aucun élément dans ce trousseau.</td>
+                    <td colspan="8">Aucun élément dans ce trousseau.</td>
                 </tr>
             <?php else: ?>
                 <?php foreach ($elements as $element): ?>
@@ -846,11 +807,9 @@ try {
                                 <?= htmlspecialchars($element['badge'] ?? '-') ?>
                             <?php endif; ?>
                         </td>
-                        <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
-                        <td><?= htmlspecialchars($element['nom_porte'] ?? '-') ?></td>
+                        <td><?= htmlspecialchars($element['acces_batiments'] ?? '—') ?></td>
                         <td><?= htmlspecialchars($element['statut_element'] ?? '-') ?></td>
-                        <td><?= formaterDate($element['date_ajout'] ?? '-') ?></td>
-                        <td><?= formaterDate($element['date_retrait']) ?? '-' ?></td>
+                        <td><?= formaterDate($element['date_ajout'] ?? null) ?></td>
                         <td><?= htmlspecialchars($element['commentaire'] ?? '-') ?></td>
                         <td>
                             <?php if ($element['type_element'] === 'badge'): ?>
@@ -910,8 +869,6 @@ try {
             <tr>
                 <th>Type</th>
                 <th>Référence / ID</th>
-                <th>Bâtiment</th>
-                <th>Porte / commentaire</th>
                 <th>Statut</th>
                 <th>Date ajout</th>
                 <th>Date retrait</th>
@@ -921,7 +878,7 @@ try {
         <tbody>
             <?php if (empty($anciens_elements)) : ?>
                 <tr>
-                    <td colspan="8">Aucun élément retiré ou perdu pour ce trousseau.</td>
+                    <td colspan="6">Aucun élément retiré ou perdu pour ce trousseau.</td>
                 </tr>
             <?php else : ?>
                 <?php foreach ($anciens_elements as $element) : ?>
@@ -934,11 +891,9 @@ try {
                                 <?= htmlspecialchars($element['badge'] ?? '-') ?>
                             <?php endif; ?>
                         </td>
-                        <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
-                        <td><?= htmlspecialchars($element['nom_porte'] ?? '-') ?></td>
                         <td><?= htmlspecialchars($element['statut_element'] ?? '-') ?></td>
-                        <td><?= htmlspecialchars($element['date_ajout'] ?? '-') ?></td>
-                        <td><?= htmlspecialchars($element['date_retrait'] ?? '-') ?></td>
+                        <td><?= formaterDate($element['date_ajout'] ?? null) ?></td>
+                        <td><?= formaterDate($element['date_retrait'] ?? null) ?></td>
                         <td><?= htmlspecialchars($element['commentaire'] ?? '-') ?></td>
                     </tr>
                 <?php endforeach; ?>
