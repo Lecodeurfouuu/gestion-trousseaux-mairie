@@ -36,19 +36,20 @@ if ($type_recherche === 'batiment' && $id_batiment_search > 0) {
                 b.identifiant_interne AS badge,
                 po.nom_porte,
                 te.commentaire_horaires
-            FROM element_acces ea
-            JOIN batiments bat ON ea.id_batiment = bat.id_batiment
-            LEFT JOIN portes po ON ea.id_porte = po.id_porte
-            LEFT JOIN references_cles rc ON ea.id_reference_cle = rc.id_reference_cle
-            LEFT JOIN badges b ON ea.id_badge = b.id_badge
-            JOIN trousseau_elements te ON (
-                (ea.type_element = 'cle'   AND te.id_reference_cle = ea.id_reference_cle)
-                OR
-                (ea.type_element = 'badge' AND te.id_badge = ea.id_badge)
-            )
+            FROM trousseau_elements te
+            LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
+            LEFT JOIN badges b ON te.id_badge = b.id_badge
             JOIN trousseaux t ON te.id_trousseau = t.id_trousseau
-            JOIN historique_trousseaux h ON t.id_trousseau = h.id_trousseau AND h.date_restitution IS NULL
+            JOIN historique_trousseaux h
+                ON t.id_trousseau = h.id_trousseau
+                AND h.date_restitution IS NULL
             JOIN personnes p ON h.id_personne = p.id_personne
+            JOIN element_acces ea ON (
+                (te.type_element = 'cle'   AND ea.id_reference_cle = te.id_reference_cle)
+                OR
+                (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
+            )
+            LEFT JOIN portes po ON ea.id_porte = po.id_porte
             WHERE ea.id_batiment = :id_batiment
             AND te.statut = 'Présent'
             AND te.date_retrait IS NULL
