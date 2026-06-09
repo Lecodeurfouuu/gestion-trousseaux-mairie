@@ -399,56 +399,72 @@ function toggleChamps(type) {
             break;
         }
     }
+
+    // Regrouper les résultats par personne
+    $par_personne = [];
+    foreach ($resultats_batiment as $r) {
+        $cle_personne = $r['nom'] . '|' . $r['prenom'];
+        $par_personne[$cle_personne][] = $r;
+    }
     ?>
-    <div class="card">
-        <h2>Personnes ayant accès à : <?= htmlspecialchars($nomBatimentChoisi) ?></h2>
-        <?php if (empty($resultats_batiment)) : ?>
+
+    <h2>Personnes ayant accès à : <?= htmlspecialchars($nomBatimentChoisi) ?>
+        <small>(<?= count($par_personne) ?> personne<?= count($par_personne) > 1 ? 's' : '' ?>)</small>
+    </h2>
+
+    <?php if (empty($par_personne)) : ?>
+        <div class="card">
             <p>Aucune personne n'a accès à ce bâtiment actuellement.</p>
-        <?php else : ?>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Personne</th>
-                        <th>Service</th>
-                        <th>Trousseau</th>
-                        <th>Type</th>
-                        <th>Référence / Badge</th>
-                        <th>Porte</th>
-                        <th>Horaires badge</th>
-                        <th>Détail</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($resultats_batiment as $r) : ?>
+        </div>
+    <?php else : ?>
+        <?php foreach ($par_personne as $lignes) : ?>
+            <?php $premiere = $lignes[0]; ?>
+            <div class="card">
+                <h3 style="margin-bottom:4px;">
+                    <?= htmlspecialchars($premiere['prenom'] . ' ' . $premiere['nom']) ?>
+                </h3>
+                <p style="color:#64748b; margin-bottom:12px;">
+                    <?= htmlspecialchars($premiere['service'] ?? '') ?>
+                    — Trousseau :
+                    <a href="fiche_trousseau.php?id=<?= (int)$premiere['id_trousseau'] ?>">
+                        <?= htmlspecialchars($premiere['numero_trousseau']) ?>
+                    </a>
+                </p>
+                <table>
+                    <thead>
                         <tr>
-                            <td><?= htmlspecialchars($r['prenom'] . ' ' . $r['nom']) ?></td>
-                            <td><?= htmlspecialchars($r['service'] ?? '-') ?></td>
-                            <td><?= htmlspecialchars($r['numero_trousseau']) ?></td>
-                            <td><?= htmlspecialchars($r['type_element']) ?></td>
-                            <td>
-                                <?php if ($r['type_element'] === 'cle') : ?>
-                                    <?= htmlspecialchars($r['reference_cle'] ?? '-') ?>
-                                <?php else : ?>
-                                    <?= htmlspecialchars($r['badge'] ?? '-') ?>
-                                <?php endif; ?>
-                            </td>
-                            <td><?= htmlspecialchars($r['portes_acces'] ?? '—') ?></td>
-                            <td>
-                                <?php if ($r['type_element'] === 'badge' && !empty($r['commentaire_horaires'])) : ?>
-                                    <?= htmlspecialchars($r['commentaire_horaires']) ?>
-                                <?php else : ?>
-                                    -
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <a href="fiche_trousseau.php?id=<?= (int)$r['id_trousseau'] ?>">Voir la fiche</a>
-                            </td>
+                            <th>Type</th>
+                            <th>Référence / Badge</th>
+                            <th>Porte(s)</th>
+                            <th>Horaires badge</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php endif; ?>
-    </div>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($lignes as $r) : ?>
+                            <tr>
+                                <td><?= htmlspecialchars($r['type_element']) ?></td>
+                                <td>
+                                    <?php if ($r['type_element'] === 'cle') : ?>
+                                        <?= htmlspecialchars($r['reference_cle'] ?? '-') ?>
+                                    <?php else : ?>
+                                        <?= htmlspecialchars($r['badge'] ?? '-') ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td><?= htmlspecialchars($r['portes_acces'] ?? '—') ?></td>
+                                <td>
+                                    <?php if ($r['type_element'] === 'badge' && !empty($r['commentaire_horaires'])) : ?>
+                                        <?= htmlspecialchars($r['commentaire_horaires']) ?>
+                                    <?php else : ?>
+                                        -
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
 <?php endif; ?>
 
 <?php include 'includes/footer.php'; ?>
