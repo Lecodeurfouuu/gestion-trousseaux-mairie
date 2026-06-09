@@ -34,7 +34,7 @@ if ($type_recherche === 'batiment' && $id_batiment_search > 0) {
                 te.type_element,
                 rc.reference_cle,
                 b.identifiant_interne AS badge,
-                po.nom_porte,
+                GROUP_CONCAT(po.nom_porte ORDER BY po.nom_porte SEPARATOR ', ') AS portes_acces,
                 te.commentaire_horaires
             FROM trousseau_elements te
             LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
@@ -53,7 +53,9 @@ if ($type_recherche === 'batiment' && $id_batiment_search > 0) {
             WHERE ea.id_batiment = :id_batiment
             AND te.statut = 'Présent'
             AND te.date_retrait IS NULL
-            AND t.statut = 'Attribué'
+            GROUP BY te.id_trousseau_element, p.nom, p.prenom, p.service,
+                     t.numero_trousseau, t.id_trousseau, te.type_element,
+                     rc.reference_cle, b.identifiant_interne, te.commentaire_horaires
             ORDER BY p.nom, p.prenom, te.type_element
         ");
         $requeteRechercheBatiment->execute([':id_batiment' => $id_batiment_search]);
@@ -113,33 +115,30 @@ if ($terme !== '' && in_array($type_recherche, ['personne', 'element'])) {
                         p.service,
                         h.date_remise,
                         h.date_restitution,
-                        te.date_ajout,
-                        te.date_retrait,
-                        bat.nom_batiment,
-                        po.nom_porte,
-                        te.statut AS statut_element
+                        te.statut AS statut_element,
+                        GROUP_CONCAT(
+                            bat.nom_batiment,
+                            CASE WHEN po.nom_porte IS NOT NULL THEN CONCAT(' — ', po.nom_porte) ELSE '' END
+                            ORDER BY bat.nom_batiment
+                            SEPARATOR ' | '
+                        ) AS acces_batiments
                     FROM trousseau_elements te
-                    LEFT JOIN references_cles rc
-                        ON te.id_reference_cle = rc.id_reference_cle
-                    LEFT JOIN badges b
-                        ON te.id_badge = b.id_badge
-                    JOIN trousseaux t
-                        ON te.id_trousseau = t.id_trousseau
-                    LEFT JOIN historique_trousseaux h
-                        ON t.id_trousseau = h.id_trousseau
-                    LEFT JOIN personnes p
-                        ON h.id_personne = p.id_personne
+                    LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
+                    LEFT JOIN badges b ON te.id_badge = b.id_badge
+                    JOIN trousseaux t ON te.id_trousseau = t.id_trousseau
+                    LEFT JOIN historique_trousseaux h ON t.id_trousseau = h.id_trousseau
+                    LEFT JOIN personnes p ON h.id_personne = p.id_personne
                     LEFT JOIN element_acces ea ON (
                         (te.type_element = 'cle'   AND ea.id_reference_cle = te.id_reference_cle)
                         OR
                         (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
                     )
-                    LEFT JOIN batiments bat
-                        ON ea.id_batiment = bat.id_batiment
-                    LEFT JOIN portes po
-                        ON ea.id_porte = po.id_porte
-                    WHERE (rc.reference_cle LIKE :terme
-                        OR b.identifiant_interne LIKE :terme)
+                    LEFT JOIN batiments bat ON ea.id_batiment = bat.id_batiment
+                    LEFT JOIN portes po ON ea.id_porte = po.id_porte
+                    WHERE (rc.reference_cle LIKE :terme OR b.identifiant_interne LIKE :terme)
+                    GROUP BY te.id_trousseau_element, te.type_element, rc.reference_cle,
+                             b.identifiant_interne, t.id_trousseau, t.numero_trousseau,
+                             t.statut, p.nom, p.prenom, p.service, h.date_remise, h.date_restitution, te.statut
                     ORDER BY t.numero_trousseau, h.date_remise DESC
                 ");
             } else {
@@ -156,36 +155,34 @@ if ($terme !== '' && in_array($type_recherche, ['personne', 'element'])) {
                         p.service,
                         h.date_remise,
                         NULL AS date_restitution,
-                        te.date_ajout,
-                        te.date_retrait,
-                        bat.nom_batiment,
-                        po.nom_porte,
-                        te.statut AS statut_element
+                        te.statut AS statut_element,
+                        GROUP_CONCAT(
+                            bat.nom_batiment,
+                            CASE WHEN po.nom_porte IS NOT NULL THEN CONCAT(' — ', po.nom_porte) ELSE '' END
+                            ORDER BY bat.nom_batiment
+                            SEPARATOR ' | '
+                        ) AS acces_batiments
                     FROM trousseau_elements te
-                    LEFT JOIN references_cles rc
-                        ON te.id_reference_cle = rc.id_reference_cle
-                    LEFT JOIN badges b
-                        ON te.id_badge = b.id_badge
-                    JOIN trousseaux t
-                        ON te.id_trousseau = t.id_trousseau
+                    LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
+                    LEFT JOIN badges b ON te.id_badge = b.id_badge
+                    JOIN trousseaux t ON te.id_trousseau = t.id_trousseau
                     LEFT JOIN historique_trousseaux h
                         ON t.id_trousseau = h.id_trousseau
                         AND h.date_restitution IS NULL
-                    LEFT JOIN personnes p
-                        ON h.id_personne = p.id_personne
+                    LEFT JOIN personnes p ON h.id_personne = p.id_personne
                     LEFT JOIN element_acces ea ON (
                         (te.type_element = 'cle'   AND ea.id_reference_cle = te.id_reference_cle)
                         OR
                         (te.type_element = 'badge' AND ea.id_badge = te.id_badge)
                     )
-                    LEFT JOIN batiments bat
-                        ON ea.id_batiment = bat.id_batiment
-                    LEFT JOIN portes po
-                        ON ea.id_porte = po.id_porte
-                    WHERE (rc.reference_cle LIKE :terme
-                        OR b.identifiant_interne LIKE :terme)
-                        AND te.statut = 'Présent'
-                        AND te.date_retrait IS NULL
+                    LEFT JOIN batiments bat ON ea.id_batiment = bat.id_batiment
+                    LEFT JOIN portes po ON ea.id_porte = po.id_porte
+                    WHERE (rc.reference_cle LIKE :terme OR b.identifiant_interne LIKE :terme)
+                    AND te.statut = 'Présent'
+                    AND te.date_retrait IS NULL
+                    GROUP BY te.id_trousseau_element, te.type_element, rc.reference_cle,
+                             b.identifiant_interne, t.id_trousseau, t.numero_trousseau,
+                             t.statut, p.nom, p.prenom, p.service, h.date_remise, te.statut
                     ORDER BY t.numero_trousseau, te.type_element
                 ");
             }
@@ -343,8 +340,7 @@ function toggleChamps(type) {
                         <?php if ($inclure_historique) : ?>
                             <th>Date restitution</th>
                         <?php endif; ?>
-                        <th>Bâtiment</th>
-                        <th>Porte</th>
+                        <th>Bâtiments / Portes</th>
                         <th>Statut élément</th>
                         <th>Détail</th>
                     </tr>
@@ -373,8 +369,7 @@ function toggleChamps(type) {
                             <?php if ($inclure_historique) : ?>
                                 <td><?= formaterDate($element['date_restitution'] ?? null) ?></td>
                             <?php endif; ?>
-                            <td><?= htmlspecialchars($element['nom_batiment'] ?? '-') ?></td>
-                            <td><?= htmlspecialchars($element['nom_porte'] ?? '-') ?></td>
+                            <td><?= htmlspecialchars($element['acces_batiments'] ?? '—') ?></td>
                             <td><?= htmlspecialchars($element['statut_element'] ?? '-') ?></td>
                             <td>
                                 <?php if (!empty($element['id_trousseau'])) : ?>
@@ -437,7 +432,7 @@ function toggleChamps(type) {
                                     <?= htmlspecialchars($r['badge'] ?? '-') ?>
                                 <?php endif; ?>
                             </td>
-                            <td><?= htmlspecialchars($r['nom_porte'] ?? '—') ?></td>
+                            <td><?= htmlspecialchars($r['portes_acces'] ?? '—') ?></td>
                             <td>
                                 <?php if ($r['type_element'] === 'badge' && !empty($r['commentaire_horaires'])) : ?>
                                     <?= htmlspecialchars($r['commentaire_horaires']) ?>
