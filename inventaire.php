@@ -69,6 +69,64 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_badge'])) {
 }
 
 // Ajouter un accès à une clé ou un badge existant
+// Fonction pour insérer les accès d'un élément (gère "Toutes les portes")
+function insererAccesElement(PDO $pdo, string $type, int $id_element, int $id_batiment, int $id_porte): void {
+    $nomPorteSelectionnee = '';
+    if ($id_porte > 0) {
+        $stmtNom = $pdo->prepare("SELECT nom_porte FROM portes WHERE id_porte = :id");
+        $stmtNom->execute([':id' => $id_porte]);
+        $nomPorteSelectionnee = $stmtNom->fetchColumn();
+    }
+
+    // Si "Toutes les portes" → insérer une ligne par porte réelle (sauf "Toutes les portes")
+    if (strtolower($nomPorteSelectionnee) === 'toutes les portes') {
+        $stmtPortes = $pdo->prepare("
+            SELECT id_porte FROM portes
+            WHERE id_batiment = :id_batiment
+            AND LOWER(nom_porte) != 'toutes les portes'
+        ");
+        $stmtPortes->execute([':id_batiment' => $id_batiment]);
+        $portesReelles = $stmtPortes->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach ($portesReelles as $idPorteReelle) {
+            if ($type === 'cle') {
+                $stmt = $pdo->prepare("
+                    INSERT IGNORE INTO element_acces (type_element, id_reference_cle, id_batiment, id_porte)
+                    VALUES ('cle', :id_element, :id_batiment, :id_porte)
+                ");
+            } else {
+                $stmt = $pdo->prepare("
+                    INSERT IGNORE INTO element_acces (type_element, id_badge, id_batiment, id_porte)
+                    VALUES ('badge', :id_element, :id_batiment, :id_porte)
+                ");
+            }
+            $stmt->execute([
+                ':id_element'  => $id_element,
+                ':id_batiment' => $id_batiment,
+                ':id_porte'    => $idPorteReelle
+            ]);
+        }
+    } else {
+        // Insertion normale
+        if ($type === 'cle') {
+            $stmt = $pdo->prepare("
+                INSERT INTO element_acces (type_element, id_reference_cle, id_batiment, id_porte)
+                VALUES ('cle', :id_element, :id_batiment, :id_porte)
+            ");
+        } else {
+            $stmt = $pdo->prepare("
+                INSERT INTO element_acces (type_element, id_badge, id_batiment, id_porte)
+                VALUES ('badge', :id_element, :id_batiment, :id_porte)
+            ");
+        }
+        $stmt->execute([
+            ':id_element'  => $id_element,
+            ':id_batiment' => $id_batiment,
+            ':id_porte'    => $id_porte > 0 ? $id_porte : null
+        ]);
+    }
+}
+
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant'])) {
     $type_element = $_POST['type_element_acces'] ?? '';
     $id_element = (int)($_POST['id_element_acces_existant'] ?? 0);
@@ -103,22 +161,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant
             if ($requeteDoublonAcces->fetchColumn() > 0) {
                 $message = "Cet accès existe déjà.";
             } else {
-                if ($type_element === 'cle') {
-                    $requeteAjouterAccesExistant = $pdo->prepare("
-                        INSERT INTO element_acces (type_element, id_reference_cle, id_batiment, id_porte)
-                        VALUES ('cle', :id_element, :id_batiment, :id_porte)
-                    ");
-                } else {
-                    $requeteAjouterAccesExistant = $pdo->prepare("
-                        INSERT INTO element_acces (type_element, id_badge, id_batiment, id_porte)
-                        VALUES ('badge', :id_element, :id_batiment, :id_porte)
-                    ");
-                }
-                $requeteAjouterAccesExistant->execute([
-                    ':id_element' => $id_element,
-                    ':id_batiment' => $id_batiment_acces,
-                    ':id_porte' => $id_porte_acces > 0 ? $id_porte_acces : null
-                ]);
+                insererAccesElement($pdo, $type_element, $id_element, $id_batiment_acces, $id_porte_acces);
                 $message = "Accès ajouté avec succès.";
             }
         } catch (PDOException $e) {
@@ -221,16 +264,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_reference']))
                 // Insertion des accès bâtiments (lignes non vides uniquement)
                 foreach ($acces_batiments as $index => $id_batiment) {
                     if (!empty($id_batiment)) {
-                        $id_porte = !empty($acces_portes[$index]) ? (int)$acces_portes[$index] : null;
-                        $requeteAjoutAccesCle = $pdo->prepare("
-                            INSERT INTO element_acces (type_element, id_reference_cle, id_batiment, id_porte)
-                            VALUES ('cle', :id_reference_cle, :id_batiment, :id_porte)
-                        ");
-                        $requeteAjoutAccesCle->execute([
-                            ':id_reference_cle' => $id_nouvelle_reference,
-                            ':id_batiment' => $id_batiment,
-                            ':id_porte' => $id_porte
-                        ]);
+                        $id_porte = !empty($acces_portes[$index]) ? (int)$acces_portes[$index] : 0;
+                        insererAccesElement($pdo, 'cle', $id_nouvelle_reference, (int)$id_batiment, $id_porte);
                     }
                 }
                 $message = 'Référence de clé ajoutée avec succès.';
@@ -275,16 +310,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_badge'])) {
 
                 foreach ($acces_batiments as $index => $id_batiment) {
                     if (!empty($id_batiment)) {
-                        $id_porte = !empty($acces_portes[$index]) ? (int)$acces_portes[$index] : null;
-                        $requeteAjoutAccesBadge = $pdo->prepare("
-                            INSERT INTO element_acces (type_element, id_badge, id_batiment, id_porte)
-                            VALUES ('badge', :id_badge, :id_batiment, :id_porte)
-                        ");
-                        $requeteAjoutAccesBadge->execute([
-                            ':id_badge' => $id_nouveau_badge,
-                            ':id_batiment' => $id_batiment,
-                            ':id_porte' => $id_porte
-                        ]);
+                        $id_porte = !empty($acces_portes[$index]) ? (int)$acces_portes[$index] : 0;
+                        insererAccesElement($pdo, 'badge', $id_nouveau_badge, (int)$id_batiment, $id_porte);
                     }
                 }
                 $message = 'Badge ajouté avec succès.';
