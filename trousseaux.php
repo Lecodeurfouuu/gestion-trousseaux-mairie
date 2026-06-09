@@ -8,20 +8,7 @@ include 'includes/header.php';
 $message = '';
 
 // Génération du prochain numéro de trousseau
-try {
-    $dernierNumero = $pdo->query("
-        SELECT numero_trousseau FROM trousseaux
-        ORDER BY id_trousseau DESC LIMIT 1
-    ")->fetchColumn();
-
-    if ($dernierNumero && preg_match('/TR-(\d+)$/i', $dernierNumero, $matches)) {
-        $prochainNumero = 'TR-' . str_pad((int)$matches[1] + 1, 3, '0', STR_PAD_LEFT);
-    } else {
-        $prochainNumero = 'TR-001';
-    }
-} catch (PDOException $e) {
-    $prochainNumero = 'TR-001';
-}
+$prochainNumero = genererNumeroTrousseau($pdo);
 
 // Ajout d'un trousseau
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -63,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
 
         $message = 'Trousseau ajouté avec succès.';
+        $prochainNumero = genererNumeroTrousseau($pdo);
       }
     } catch (PDOException $e) {
       $message = "Erreur lors de l'ajout : " . $e->getMessage();
