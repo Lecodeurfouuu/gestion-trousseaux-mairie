@@ -17,7 +17,7 @@ try {
     $nb_badges_perdus = $pdo->query("SELECT COUNT(*) FROM badges WHERE statut = 'Perdu'")->fetchColumn();
     $nb_references = $pdo->query("SELECT COUNT(*) FROM references_cles")->fetchColumn();
     $derniers_mouvement = $pdo->query("
-    SELECT 
+    SELECT
     h.statut_evenement,
     h.date_remise,
     h.date_restitution,
@@ -124,7 +124,7 @@ try {
                         </td>
                         <td><?= htmlspecialchars($m['prenom'] . ' ' . $m['nom']) ?></td>
                         <td>
-                            <?php formaterDate($m['date_restitution'] ?? $m['date_remise'])?>
+                            <?= formaterDate($m['date_restitution'] ?? $m['date_remise'])?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

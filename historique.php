@@ -7,7 +7,7 @@ include 'includes/header.php';
 
 try {
     $requeteHistorique = $pdo->query("
-        SELECT 
+        SELECT
             h.id_historique,
             h.date_remise,
             h.date_restitution,
@@ -24,10 +24,10 @@ try {
 
         FROM historique_trousseaux h
 
-        JOIN trousseaux t 
+        JOIN trousseaux t
             ON h.id_trousseau = t.id_trousseau
 
-        JOIN personnes p 
+        JOIN personnes p
             ON h.id_personne = p.id_personne
 
         ORDER BY h.date_remise DESC, h.id_historique DESC
@@ -93,8 +93,7 @@ try {
                         </td>
 
                         <td>
-                            <?php
-                             afficherDecharge($historique['decharge_signee']) ?>                    
+                            <?=afficherDecharge($historique['decharge_signee']) ?>
                         </td>
 
                         <td>
