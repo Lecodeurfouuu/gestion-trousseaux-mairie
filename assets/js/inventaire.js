@@ -34,7 +34,7 @@ function ajouterLigneAcces(tbodyId) {
     tbody.appendChild(tr);
 }
 
-// Mettre à jour le select porte selon le bâtiment choisi 
+// Mettre à jour le select porte selon le bâtiment choisi
 function mettreAJourPortes(selectBat, selectPorteId) {
     const idBatiment = parseInt(selectBat.value);
     const selectPorte = document.getElementById(selectPorteId);
@@ -46,6 +46,7 @@ function mettreAJourPortes(selectBat, selectPorteId) {
     }
 
     let options = '<option value="">-- Choisir une porte --</option>';
+    options += '<option value="0">Toutes les portes</option>';
     portesBatiment[idBatiment].forEach(p => {
         options += `<option value="${p.id}">${p.nom}</option>`;
     });

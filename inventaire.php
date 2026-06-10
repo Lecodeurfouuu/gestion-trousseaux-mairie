@@ -71,19 +71,10 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_badge'])) {
 // Ajouter un accès à une clé ou un badge existant
 // Fonction pour insérer les accès d'un élément (gère "Toutes les portes"), quand on selectionne le champ "Toutes les portes" on crée une entrée par porte enregistrée
 function insererAccesElement(PDO $pdo, string $type, int $id_element, int $id_batiment, int $id_porte): void {
-    $nomPorteSelectionnee = '';
-    if ($id_porte > 0) {
-        $stmtNom = $pdo->prepare("SELECT nom_porte FROM portes WHERE id_porte = :id");
-        $stmtNom->execute([':id' => $id_porte]);
-        $nomPorteSelectionnee = $stmtNom->fetchColumn();
-    }
-
-    // Si "Toutes les portes" → insérer une ligne par porte réelle (sauf "Toutes les portes")
-    if (strtolower($nomPorteSelectionnee) === 'toutes les portes') {
+    // Si id_porte = 0 → "Toutes les portes" → insérer une ligne par porte réelle du bâtiment
+    if ($id_porte === 0) {
         $stmtPortes = $pdo->prepare("
-            SELECT id_porte FROM portes
-            WHERE id_batiment = :id_batiment
-            AND LOWER(nom_porte) != 'toutes les portes'
+            SELECT id_porte FROM portes WHERE id_batiment = :id_batiment
         ");
         $stmtPortes->execute([':id_batiment' => $id_batiment]);
         $portesReelles = $stmtPortes->fetchAll(PDO::FETCH_COLUMN);
@@ -350,13 +341,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_batiment'])) 
                     ':adresse' => $adresse !== '' ? $adresse : null,
                     ':commentaire' => $commentaire !== '' ? $commentaire : null
                 ]);
-
-                // Ajouter automatiquement la porte "Toutes les portes"
-                $id_nouveau_batiment = $pdo->lastInsertId();
-                $requetePorteDefaut = $pdo->prepare("
-                    INSERT INTO portes (id_batiment, nom_porte) VALUES (:id_batiment, 'Toutes les portes')
-                ");
-                $requetePorteDefaut->execute([':id_batiment' => $id_nouveau_batiment]);
 
                 $message = 'Bâtiment ajouté avec succès.';
             }
