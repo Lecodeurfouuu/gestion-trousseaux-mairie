@@ -634,7 +634,7 @@ try {
 
     <p>
         <strong>Date de remise :</strong>
-        <?= htmlspecialchars($trousseau['date_remise'] ?? '-') ?>
+        <?= formaterDate($trousseau['date_remise'] ?? '-') ?>
     </p>
 
     <p>

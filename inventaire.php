@@ -69,7 +69,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_badge'])) {
 }
 
 // Ajouter un accès à une clé ou un badge existant
-// Fonction pour insérer les accès d'un élément (gère "Toutes les portes")
+// Fonction pour insérer les accès d'un élément (gère "Toutes les portes"), quand on selectionne le champ "Toutes les portes" on crée une entrée par porte enregistrée
 function insererAccesElement(PDO $pdo, string $type, int $id_element, int $id_batiment, int $id_porte): void {
     $nomPorteSelectionnee = '';
     if ($id_porte > 0) {
