@@ -502,7 +502,16 @@ try {
                 CASE WHEN p.nom_porte IS NOT NULL THEN CONCAT(' — ', p.nom_porte) ELSE '' END
                 ORDER BY bat.nom_batiment
                 SEPARATOR ' | '
-            ) AS acces_batiments
+            ) AS acces_batiments,
+            GROUP_CONCAT(
+                DISTINCT CONCAT(
+                    IFNULL(bat.nom_batiment, ''), '||',
+                    IFNULL(p.nom_porte, ''), '||',
+                    IFNULL(p.photo, '')
+                )
+                ORDER BY bat.nom_batiment
+                SEPARATOR ';;'
+            ) AS acces_photos
         FROM trousseau_elements te
         LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
         LEFT JOIN badges b ON te.id_badge = b.id_badge
@@ -829,6 +838,23 @@ try {
                             <?php endif; ?>
                         </td>
                         <td>
+                            <?php
+                            // Vérifier s'il y a des photos pour cet élément
+                            $aDesPhotos = false;
+                            if (!empty($element['acces_photos'])) {
+                                foreach (explode(';;', $element['acces_photos']) as $detail) {
+                                    $parts = explode('||', $detail);
+                                    if (!empty($parts[2])) { $aDesPhotos = true; break; }
+                                }
+                            }
+                            ?>
+                            <?php if ($aDesPhotos): ?>
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="activerPhotos('photos-<?= $element['id_trousseau_element'] ?>', this)"
+                                    style="white-space:nowrap;">
+                                    <i class="ti ti-camera" aria-hidden="true"></i> Photos
+                                </button>
+                            <?php endif; ?>
                             <?php if ($element['statut_element'] === 'Présent') : ?>
                                 <form method="POST"
                                     action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=contenu"
@@ -851,6 +877,33 @@ try {
                             <?php endif; ?>
                         </td>
                     </tr>
+
+                    <?php if ($aDesPhotos): ?>
+                    <tr id="photos-<?= $element['id_trousseau_element'] ?>" style="display:none;">
+                        <td colspan="8" style="padding:8px 12px; background:var(--color-background-secondary);">
+                            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                                <?php foreach (explode(';;', $element['acces_photos']) as $detail): ?>
+                                    <?php
+                                    $parts = explode('||', $detail);
+                                    $nomBat   = $parts[0] ?? '';
+                                    $nomPorte = $parts[1] ?? '';
+                                    $photo    = $parts[2] ?? '';
+                                    if (empty($photo)) continue;
+                                    ?>
+                                    <div style="text-align:center; min-width:100px;">
+                                        <a href="assets/uploads/portes/<?= htmlspecialchars($photo) ?>" target="_blank">
+                                            <img src="assets/uploads/portes/<?= htmlspecialchars($photo) ?>"
+                                                style="width:100px; height:75px; object-fit:cover; border-radius:6px; border:0.5px solid var(--color-border-tertiary);">
+                                        </a>
+                                        <p style="font-size:11px; color:var(--color-text-secondary); margin:4px 0 0;">
+                                            <?= htmlspecialchars($nomPorte ?: $nomBat) ?>
+                                        </p>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                 <?php endforeach; ?>
             <?php endif; ?>
         </tbody>

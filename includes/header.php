@@ -12,6 +12,7 @@ if (!isset($page_title)) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($page_title) ?> — Gestion Badge / Clé</title>
     <link rel="stylesheet" href="assets/css/style.css">
+    <script src="assets/js/app.js" defer></script> <!-- *defer On charge le HTML avant le script JavaScript de l'application' -->
 </head>
 <body>
 

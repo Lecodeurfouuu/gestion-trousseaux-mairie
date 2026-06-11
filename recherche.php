@@ -52,6 +52,11 @@ if ($id_batiment_search > 0) {
                 rc.reference_cle,
                 b.identifiant_interne AS badge,
                 GROUP_CONCAT(po.nom_porte ORDER BY po.nom_porte SEPARATOR ', ') AS portes_acces,
+                GROUP_CONCAT(
+                    DISTINCT CONCAT(IFNULL(po.nom_porte, ''), '||', IFNULL(po.photo, ''))
+                    ORDER BY po.nom_porte
+                    SEPARATOR ';;'
+                ) AS acces_photos,
                 te.commentaire_horaires
             FROM trousseau_elements te
             LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
@@ -139,7 +144,16 @@ if ($terme !== '') {
                         CASE WHEN po.nom_porte IS NOT NULL THEN CONCAT(' — ', po.nom_porte) ELSE '' END
                             ORDER BY bat.nom_batiment
                             SEPARATOR ' | '
-                    ) AS acces_batiments
+                    ) AS acces_batiments,
+                    GROUP_CONCAT(
+                        DISTINCT CONCAT(
+                            IFNULL(bat.nom_batiment, ''), '||',
+                            IFNULL(po.nom_porte, ''), '||',
+                            IFNULL(po.photo, '')
+                        )
+                        ORDER BY bat.nom_batiment
+                        SEPARATOR ';;'
+                    ) AS acces_photos
                 FROM trousseau_elements te
                 LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
                 LEFT JOIN badges b ON te.id_badge = b.id_badge
@@ -179,7 +193,16 @@ if ($terme !== '') {
                         CASE WHEN po.nom_porte IS NOT NULL THEN CONCAT(' — ', po.nom_porte) ELSE '' END
                             ORDER BY bat.nom_batiment
                             SEPARATOR ' | '
-                    ) AS acces_batiments
+                    ) AS acces_batiments,
+                    GROUP_CONCAT(
+                        DISTINCT CONCAT(
+                            IFNULL(bat.nom_batiment, ''), '||',
+                            IFNULL(po.nom_porte, ''), '||',
+                            IFNULL(po.photo, '')
+                        )
+                        ORDER BY bat.nom_batiment
+                        SEPARATOR ';;'
+                    ) AS acces_photos
                 FROM trousseau_elements te
                 LEFT JOIN references_cles rc ON te.id_reference_cle = rc.id_reference_cle
                 LEFT JOIN badges b ON te.id_badge = b.id_badge
@@ -352,7 +375,16 @@ if ($terme !== '') {
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($resultats_elements as $element) : ?>
+                <?php foreach ($resultats_elements as $element) :
+                    $idUnique = 'rech-' . md5($element['id_trousseau'] . $element['type_element'] . ($element['reference_cle'] ?? $element['badge'] ?? ''));
+                    $aDesPhotos = false;
+                    if (!empty($element['acces_photos'])) {
+                        foreach (explode(';;', $element['acces_photos']) as $detail) {
+                            $parts = explode('||', $detail);
+                            if (!empty($parts[2])) { $aDesPhotos = true; break; }
+                        }
+                    }
+                ?>
                     <tr>
                         <td><?= htmlspecialchars($element['type_element']) ?></td>
                         <td>
@@ -378,6 +410,13 @@ if ($terme !== '') {
                         <td><?= htmlspecialchars($element['acces_batiments'] ?? '—') ?></td>
                         <td><?= htmlspecialchars($element['statut_element'] ?? '-') ?></td>
                         <td>
+                            <?php if ($aDesPhotos) : ?>
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="activerPhotos('<?= $idUnique ?>', this)"
+                                    style="white-space:nowrap; margin-bottom:4px;">
+                                    <i class="ti ti-camera" aria-hidden="true"></i> Photos
+                                </button><br>
+                            <?php endif; ?>
                             <?php if (!empty($element['id_trousseau'])) : ?>
                                 <a href="fiche_trousseau.php?id=<?= (int)$element['id_trousseau'] ?>">Voir la fiche</a>
                             <?php else : ?>
@@ -385,6 +424,31 @@ if ($terme !== '') {
                             <?php endif; ?>
                         </td>
                     </tr>
+                    <?php if ($aDesPhotos) : ?>
+                    <tr id="<?= $idUnique ?>" style="display:none;">
+                        <td colspan="<?= $inclure_historique ? 10 : 9 ?>" style="padding:8px 12px; background:var(--color-background-secondary);">
+                            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                                <?php foreach (explode(';;', $element['acces_photos']) as $detail) :
+                                    $parts = explode('||', $detail);
+                                    $nomBat   = $parts[0] ?? '';
+                                    $nomPorte = $parts[1] ?? '';
+                                    $photo    = $parts[2] ?? '';
+                                    if (empty($photo)) continue;
+                                ?>
+                                    <div style="text-align:center; min-width:100px;">
+                                        <a href="assets/uploads/portes/<?= htmlspecialchars($photo) ?>" target="_blank">
+                                            <img src="assets/uploads/portes/<?= htmlspecialchars($photo) ?>"
+                                                style="width:100px; height:75px; object-fit:cover; border-radius:6px; border:0.5px solid var(--color-border-tertiary);">
+                                        </a>
+                                        <p style="font-size:11px; color:var(--color-text-secondary); margin:4px 0 0;">
+                                            <?= htmlspecialchars($nomPorte ?: $nomBat) ?>
+                                        </p>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                 <?php endforeach; ?>
             </tbody>
         </table>
@@ -451,10 +515,20 @@ if ($terme !== '') {
                             <th>Référence / Badge</th>
                             <th>Porte(s)</th>
                             <th>Horaires badge</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($lignes as $r) : ?>
+                        <?php foreach ($lignes as $r) :
+                            $idPhotoBat = 'bat-' . md5($r['id_trousseau'] . $r['type_element'] . ($r['reference_cle'] ?? $r['badge'] ?? ''));
+                            $aDesPhotos = false;
+                            if (!empty($r['acces_photos'])) {
+                                foreach (explode(';;', $r['acces_photos']) as $detail) {
+                                    $parts = explode('||', $detail);
+                                    if (!empty($parts[1])) { $aDesPhotos = true; break; }
+                                }
+                            }
+                        ?>
                             <tr>
                                 <td><?= htmlspecialchars($r['type_element']) ?></td>
                                 <td>
@@ -472,7 +546,36 @@ if ($terme !== '') {
                                         -
                                     <?php endif; ?>
                                 </td>
+                                <td>
+                                    <?php if ($aDesPhotos) : ?>
+                                        <button type="button" class="btn btn-secondary"
+                                            onclick="activerPhotos('<?= $idPhotoBat ?>', this)"
+                                            style="white-space:nowrap;">Photos</button>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
+                            <?php if ($aDesPhotos) : ?>
+                            <tr id="<?= $idPhotoBat ?>" style="display:none;">
+                                <td colspan="5" style="padding:8px 12px; background:var(--color-background-secondary);">
+                                    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                                        <?php foreach (explode(';;', $r['acces_photos']) as $detail) :
+                                            $parts = explode('||', $detail);
+                                            if (empty($parts[1])) continue;
+                                        ?>
+                                            <div style="text-align:center; min-width:100px;">
+                                                <a href="assets/uploads/portes/<?= htmlspecialchars($parts[1]) ?>" target="_blank">
+                                                    <img src="assets/uploads/portes/<?= htmlspecialchars($parts[1]) ?>"
+                                                        style="width:100px; height:75px; object-fit:cover; border-radius:6px; border:0.5px solid var(--color-border-tertiary);">
+                                                </a>
+                                                <p style="font-size:11px; color:var(--color-text-secondary); margin:4px 0 0;">
+                                                    <?= htmlspecialchars($parts[0]) ?>
+                                                </p>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endif; ?>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
