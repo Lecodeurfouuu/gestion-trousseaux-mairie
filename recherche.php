@@ -7,6 +7,7 @@ include 'includes/header.php';
 
 $terme              = trim($_GET['terme'] ?? '');
 $id_batiment_search = (int)($_GET['id_batiment'] ?? 0);
+$id_porte_search    = (int)($_GET['id_porte'] ?? 0);
 $inclure_historique = isset($_GET['inclure_historique']) && $_GET['inclure_historique'] === '1';
 
 $resultats_personnes  = [];
@@ -19,6 +20,22 @@ try {
     $batiments = $pdo->query("SELECT id_batiment, nom_batiment FROM batiments ORDER BY nom_batiment")->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     $batiments = [];
+}
+
+// Récupération des portes du bâtiment sélectionné
+$portes_du_batiment = [];
+if ($id_batiment_search > 0) {
+    try {
+        $stmtPortes = $pdo->prepare("
+            SELECT id_porte, nom_porte FROM portes
+            WHERE id_batiment = :id_batiment
+            ORDER BY nom_porte
+        ");
+        $stmtPortes->execute([':id_batiment' => $id_batiment_search]);
+        $portes_du_batiment = $stmtPortes->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        $portes_du_batiment = [];
+    }
 }
 
 // Recherche bâtiment
@@ -53,12 +70,15 @@ if ($id_batiment_search > 0) {
             WHERE ea.id_batiment = :id_batiment
             AND te.statut = 'Présent'
             AND te.date_retrait IS NULL
+            " . ($id_porte_search > 0 ? 'AND ea.id_porte = :id_porte' : '') . "
             GROUP BY te.id_trousseau_element, p.nom, p.prenom, p.service,
                      t.numero_trousseau, t.id_trousseau, te.type_element,
                      rc.reference_cle, b.identifiant_interne, te.commentaire_horaires
             ORDER BY p.nom, p.prenom, te.type_element
         ");
-        $requeteRechercheBatiment->execute([':id_batiment' => $id_batiment_search]);
+        $params = [':id_batiment' => $id_batiment_search];
+        if ($id_porte_search > 0) $params[':id_porte'] = $id_porte_search;
+        $requeteRechercheBatiment->execute($params);
         $resultats_batiment = $requeteRechercheBatiment->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
         error_log("Erreur SQL recherche bâtiment : " . $e->getMessage());
@@ -226,7 +246,7 @@ if ($terme !== '') {
     <h2>Recherche par bâtiment</h2>
     <form method="GET" action="recherche.php">
         <label for="id_batiment">Bâtiment</label>
-        <select id="id_batiment" name="id_batiment">
+        <select id="id_batiment" name="id_batiment" onchange="this.form.submit()">
             <option value="">-- Choisir un bâtiment --</option>
             <?php foreach ($batiments as $bat) : ?>
                 <option value="<?= $bat['id_batiment'] ?>" <?= $id_batiment_search === (int)$bat['id_batiment'] ? 'selected' : '' ?>>
@@ -234,7 +254,20 @@ if ($terme !== '') {
                 </option>
             <?php endforeach; ?>
         </select>
-        <button type="submit">Rechercher</button>
+        <?php if (!empty($portes_du_batiment)) : ?>
+            <label for="id_porte">Porte (optionnel)</label>
+            <select id="id_porte" name="id_porte">
+                <option value="">-- Toutes les portes --</option>
+                <?php foreach ($portes_du_batiment as $porte) : ?>
+                    <option value="<?= $porte['id_porte'] ?>" <?= $id_porte_search === (int)$porte['id_porte'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($porte['nom_porte']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        <?php endif; ?>
+        <?php if ($id_batiment_search > 0) : ?>
+            <button type="submit" style="margin-top:8px;">Rechercher</button>
+        <?php endif; ?>
     </form>
 </div>
 
@@ -374,9 +407,22 @@ if ($terme !== '') {
         $cle_personne = $r['nom'] . '|' . $r['prenom'];
         $par_personne[$cle_personne][] = $r;
     }
+    // Nom de la porte sélectionnée si filtrée
+    $nomPorteChoisie = '';
+    if ($id_porte_search > 0) {
+        foreach ($portes_du_batiment as $po) {
+            if ((int)$po['id_porte'] === $id_porte_search) {
+                $nomPorteChoisie = $po['nom_porte'];
+                break;
+            }
+        }
+    }
 ?>
 
     <h2>Personnes ayant accès à : <?= htmlspecialchars($nomBatimentChoisi) ?>
+        <?php if ($nomPorteChoisie !== '') : ?>
+            — <?= htmlspecialchars($nomPorteChoisie) ?>
+        <?php endif; ?>
         <small>(<?= count($par_personne) ?> personne<?= count($par_personne) > 1 ? 's' : '' ?>)</small>
     </h2>
 

@@ -119,12 +119,16 @@ function insererAccesElement(PDO $pdo, string $type, int $id_element, int $id_ba
 }
 
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant'])) {
-    $type_element = $_POST['type_element_acces'] ?? '';
-    $id_element = (int)($_POST['id_element_acces_existant'] ?? 0);
+    $type_element      = $_POST['type_element_acces'] ?? '';
+    $id_element        = (int)($_POST['id_element_acces_existant'] ?? 0);
     $id_batiment_acces = (int)($_POST['id_batiment_acces'] ?? 0);
-    $id_porte_acces = (int)($_POST['id_porte_acces'] ?? 0);
+    $id_porte_raw      = $_POST['id_porte_acces'] ?? '';
 
-    if ($id_element > 0 && $id_batiment_acces > 0) {
+    // Bloquer si aucune porte sélectionnée
+    if ($id_porte_raw === '') {
+        $message = "Veuillez sélectionner une porte (ou choisir 'Toutes les portes').";
+    } elseif ($id_element > 0 && $id_batiment_acces > 0) {
+        $id_porte_acces = (int)$id_porte_raw; // "0" = Toutes les portes, ">0" = porte spécifique
         try {
             // Vérification doublon
             if ($type_element === 'cle') {
@@ -189,11 +193,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_porte'])) {
         $message = "Veuillez sélectionner un bâtiment et saisir un nom de porte.";
     } else {
         try {
-            $requeteAjoutPorte = $pdo->prepare("
-                INSERT INTO portes (id_batiment, nom_porte) VALUES (:id_batiment, :nom_porte)
-            ");
-            $requeteAjoutPorte->execute([':id_batiment' => $id_batiment_porte, ':nom_porte' => $nom_porte]);
-            $message = "Porte ajoutée avec succès.";
+            $nom_fichier_photo = null;
+            if (!empty($_FILES['photo_porte']['name'])) {
+                $ext = strtolower(pathinfo($_FILES['photo_porte']['name'], PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                    $nom_fichier_photo = 'porte_' . uniqid() . '.' . $ext;
+                    move_uploaded_file($_FILES['photo_porte']['tmp_name'], 'assets/uploads/portes/' . $nom_fichier_photo);
+                } else {
+                    $message = "Format non supporté. Utilisez jpg, png ou webp.";
+                }
+            }
+
+            if ($message === '') {
+                $requeteAjoutPorte = $pdo->prepare("
+                    INSERT INTO portes (id_batiment, nom_porte, photo) VALUES (:id_batiment, :nom_porte, :photo)
+                ");
+                $requeteAjoutPorte->execute([
+                    ':id_batiment' => $id_batiment_porte,
+                    ':nom_porte'   => $nom_porte,
+                    ':photo'       => $nom_fichier_photo
+                ]);
+                $message = "Porte ajoutée avec succès.";
+            }
         } catch (PDOException $e) {
             $message = "Erreur : " . $e->getMessage();
         }
@@ -203,18 +224,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_porte'])) {
 // Modification d'une porte
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_porte'])) {
-    $id_porte = (int)($_POST['id_porte'] ?? 0);
+    $id_porte    = (int)($_POST['id_porte'] ?? 0);
     $nouveau_nom = trim($_POST['nouveau_nom_porte'] ?? '');
 
     if ($id_porte === 0 || $nouveau_nom === '') {
         $message = "Données invalides pour la modification de la porte.";
     } else {
         try {
-            $requeteModifierPorte = $pdo->prepare("
-                UPDATE portes SET nom_porte = :nom_porte WHERE id_porte = :id_porte
-            ");
-            $requeteModifierPorte->execute([':nom_porte' => $nouveau_nom, ':id_porte' => $id_porte]);
-            $message = "Porte modifiée avec succès.";
+            $nom_fichier_photo = $_POST['photo_actuelle'] ?? null;
+            if (!empty($_FILES['photo_porte']['name'])) {
+                $ext = strtolower(pathinfo($_FILES['photo_porte']['name'], PATHINFO_EXTENSION));
+                if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
+                    $nom_fichier_photo = 'porte_' . uniqid() . '.' . $ext;
+                    move_uploaded_file($_FILES['photo_porte']['tmp_name'], 'assets/uploads/portes/' . $nom_fichier_photo);
+                } else {
+                    $message = "Format non supporté. Utilisez jpg, png ou webp.";
+                }
+            }
+
+            if ($message === '') {
+                $requeteModifierPorte = $pdo->prepare("
+                    UPDATE portes SET nom_porte = :nom_porte, photo = :photo WHERE id_porte = :id_porte
+                ");
+                $requeteModifierPorte->execute([
+                    ':nom_porte' => $nouveau_nom,
+                    ':photo'     => $nom_fichier_photo,
+                    ':id_porte'  => $id_porte
+                ]);
+                $message = "Porte modifiée avec succès.";
+            }
         } catch (PDOException $e) {
             $message = "Erreur : " . $e->getMessage();
         }
@@ -255,7 +293,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_reference']))
                 // Insertion des accès bâtiments (lignes non vides uniquement)
                 foreach ($acces_batiments as $index => $id_batiment) {
                     if (!empty($id_batiment)) {
-                        $id_porte = !empty($acces_portes[$index]) ? (int)$acces_portes[$index] : 0;
+                        $id_porte_raw = $acces_portes[$index] ?? '';
+                        if ($id_porte_raw === '') continue; // Aucune porte sélectionnée → ignorer
+                        $id_porte = (int)$id_porte_raw; // "0" = Toutes les portes, ">0" = porte spécifique
                         insererAccesElement($pdo, 'cle', $id_nouvelle_reference, (int)$id_batiment, $id_porte);
                     }
                 }
@@ -301,7 +341,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_badge'])) {
 
                 foreach ($acces_batiments as $index => $id_batiment) {
                     if (!empty($id_batiment)) {
-                        $id_porte = !empty($acces_portes[$index]) ? (int)$acces_portes[$index] : 0;
+                        $id_porte_raw = $acces_portes[$index] ?? '';
+                        if ($id_porte_raw === '') continue; // Aucune porte sélectionnée → ignorer
+                        $id_porte = (int)$id_porte_raw;
                         insererAccesElement($pdo, 'badge', $id_nouveau_badge, (int)$id_batiment, $id_porte);
                     }
                 }
@@ -402,7 +444,7 @@ try {
 
     // Toutes les portes (pour JS + affichage bâtiments)
     $toutes_portes = $pdo->query("
-        SELECT p.id_porte, p.id_batiment, p.nom_porte, bat.nom_batiment
+        SELECT p.id_porte, p.id_batiment, p.nom_porte, p.photo, bat.nom_batiment
         FROM portes p
         JOIN batiments bat ON p.id_batiment = bat.id_batiment
         ORDER BY bat.nom_batiment, p.nom_porte
@@ -743,7 +785,7 @@ try {
     <!-- Formulaire ajout porte -->
     <div class="card">
         <h2>Ajouter une porte</h2>
-        <form method="POST" action="inventaire.php?onglet=batiments">
+        <form method="POST" action="inventaire.php?onglet=batiments" enctype="multipart/form-data">
             <input type="hidden" name="ajouter_porte" value="1">
             <label>Bâtiment *</label>
             <select name="id_batiment_porte" required>
@@ -754,6 +796,9 @@ try {
             </select>
             <label>Nom de la porte *</label>
             <input type="text" name="nom_porte" placeholder="Ex : Porte 36, Entrée principale..." required>
+            <label>Photo (optionnel)</label>
+            <input type="file" name="photo_porte" accept="image/jpeg,image/png,image/webp">
+            <small>Formats acceptés : jpg, png, webp</small>
             <button type="submit" class="btn">Ajouter la porte</button>
         </form>
     </div>
@@ -782,12 +827,22 @@ try {
                         <?php else : ?>
                             <?php foreach ($portes_bat as $porte) : ?>
                                 <form method="POST" action="inventaire.php?onglet=batiments"
-                                    style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                                    enctype="multipart/form-data"
+                                    style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
                                     <input type="hidden" name="modifier_porte" value="1">
                                     <input type="hidden" name="id_porte" value="<?= $porte['id_porte'] ?>">
+                                    <input type="hidden" name="photo_actuelle" value="<?= htmlspecialchars($porte['photo'] ?? '') ?>">
                                     <input type="text" name="nouveau_nom_porte"
                                         value="<?= htmlspecialchars($porte['nom_porte']) ?>"
-                                        style="flex:1; margin:0;">
+                                        style="flex:1; margin:0; min-width:150px;">
+                                    <input type="file" name="photo_porte" accept="image/jpeg,image/png,image/webp"
+                                        style="margin:0;">
+                                    <?php if (!empty($porte['photo'])) : ?>
+                                        <a href="assets/uploads/portes/<?= htmlspecialchars($porte['photo']) ?>" target="_blank">
+                                            <img src="assets/uploads/portes/<?= htmlspecialchars($porte['photo']) ?>"
+                                                style="height:36px; width:36px; object-fit:cover; border-radius:4px; border:1px solid #e5e7eb;">
+                                        </a>
+                                    <?php endif; ?>
                                     <button type="submit" class="btn btn-secondary" style="white-space:nowrap;">Modifier</button>
                                 </form>
                             <?php endforeach; ?>
