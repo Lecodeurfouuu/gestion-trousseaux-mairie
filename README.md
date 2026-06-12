@@ -15,17 +15,17 @@ Pour l'utilisation de l'application il faut :
 ___
 
 ## Installation
-1.Copier les fichiers
+### 1.Copier les fichiers
 Placer le dossier 'stage' dans 'C\wamp64\www\stage\'
 Vous êtes libre de changer le nom du fichier 'stage'
 
-2.Créer la base de données
+### 2.Créer la base de données
 Ouvrir phpAdmin -> 'http://localhost/phpmyadmin'
 Créer une base de données nommée `stage\_db` ou le nom que vous voulez mais pensez alors a modifer les informations de $dbname dans 'config/database.php'
 Importer le script de création : `sql/create\_tables.sql`
 Importer les données de test (optionnel) : `sql/donnees\_test.sql`
 
-3.Configurer la connexion
+### 3.Configurer la connexion
 Ouvrir `config/database.php` et vérifier les paramètres :
 php
 $host     = 'localhost';
@@ -33,8 +33,11 @@ $dbname   = 'stage_db'; *à modifer si vous avez nommer votre base de donnée di
 $username = 'root';
 $password = '';
 
-4.Lancer l'application
+### 4.Lancer l'application
 Ouvrir le navigateur et accéder à http://localhost/stage/
+
+### 5.Déploiement
+Avant le déploiement sur un serveur ne pas oublier de lire https://github.com/Lecodeurfouuu/gestion-trousseaux-mairie/blob/10b9b038b68345c015ebc2de731fc16fdc09af93/annexe_rapport_audit_securite_ZAP.pdf
 ___
 
 ## Structure des fichiers
@@ -90,10 +93,10 @@ Statistiques en temps réel (trousseaux attribués, Badges en circulation, Déch
 5 derniers mouvements
 ___
 
-##Scénario d'utilisation
+## Scénario d'utilisation
 
 ### Ajouter une personne et lui attribuer un trousseau
-**Inventaire** -> créer les bâtiments nécessaires
+1. **Inventaire** -> créer les bâtiments nécessaires
 2. **Inventaire** -> créer les références de clés/badges avec leurs accès
 3. **Personnes** -> ajouter la personnes
 4. **Trousseaux** -> créer un nouveau trousseau
@@ -102,8 +105,8 @@ ___
 
 ### Restituer un trousseau
 **Fiche trousseau** -> onglet Informations -> Restituer le trousseau
-2. Le trousseau repasse automatiquement en "Disponible"
-3. Les badges repassent automatiquement en "Disponible"
+1. Le trousseau repasse automatiquement en "Disponible"
+2. Les badges repassent automatiquement en "Disponible"
 
 ### Déclarer une perte
 **Perte d'un trousseau complet** : Fiche trousseau → onglet Informations → Déclarer le trousseau perdu
