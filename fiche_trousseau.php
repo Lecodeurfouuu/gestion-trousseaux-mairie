@@ -896,7 +896,7 @@ try {
                                                 style="width:100px; height:75px; object-fit:cover; border-radius:6px; border:0.5px solid var(--color-border-tertiary);">
                                         </a>
                                         <p style="font-size:11px; color:var(--color-text-secondary); margin:4px 0 0;">
-                                            <?= htmlspecialchars($nomPorte ?: $nomBat) ?>
+                                            <?= htmlspecialchars($nomBat . (!empty($nomPorte) ? ' — ' . $nomPorte : '')) ?>
                                         </p>
                                     </div>
                                 <?php endforeach; ?>

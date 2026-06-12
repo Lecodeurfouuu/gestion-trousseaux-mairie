@@ -556,61 +556,92 @@ try {
 
     <div class="card">
         <h2>Liste des références de clés</h2>
-        <table>
+
+        <?php
+        $refs_avec_acces = array_filter($references, fn($r) => !empty($r['acces_batiments']));
+        $refs_sans_acces = array_filter($references, fn($r) => empty($r['acces_batiments']));
+        ?>
+
+        <?php if (empty($references)) : ?>
+            <p>Aucune référence de clé enregistrée.</p>
+        <?php endif; ?>
+
+        <!-- Clés avec accès -->
+        <?php if (!empty($refs_avec_acces)) : ?>
+        <h3 style="margin-bottom:8px;">Avec accès (<?= count($refs_avec_acces) ?>)</h3>
+        <table style="margin-bottom:24px;">
             <thead><tr><th>Référence</th><th>Bâtiments / Portes</th><th>Commentaire</th><th></th></tr></thead>
             <tbody>
-                <?php if (empty($references)) : ?>
-                    <tr><td colspan="4">Aucune référence de clé enregistrée.</td></tr>
-                <?php else : ?>
-                    <?php foreach ($references as $ref) :
-                        $aDesPhotos = false;
-                        if (!empty($ref['acces_photos'])) {
-                            foreach (explode(';;', $ref['acces_photos']) as $detail) {
-                                $parts = explode('||', $detail);
-                                if (!empty($parts[2])) { $aDesPhotos = true; break; }
-                            }
+                <?php foreach ($refs_avec_acces as $ref) :
+                    $aDesPhotos = false;
+                    if (!empty($ref['acces_photos'])) {
+                        foreach (explode(';;', $ref['acces_photos']) as $detail) {
+                            $parts = explode('||', $detail);
+                            if (!empty($parts[2])) { $aDesPhotos = true; break; }
                         }
-                        $idPhoto = 'inv-cle-' . $ref['id_reference_cle'];
-                    ?>
-                        <tr>
-                            <td><?= htmlspecialchars($ref['reference_cle']) ?></td>
-                            <td><?= htmlspecialchars($ref['acces_batiments'] ?? '—') ?></td>
-                            <td><?= htmlspecialchars($ref['commentaire'] ?? '') ?></td>
-                            <td>
-                                <?php if ($aDesPhotos) : ?>
-                                    <button type="button" class="btn btn-secondary"
-                                        onclick="activerPhotos('<?= $idPhoto ?>', this)"
-                                        style="white-space:nowrap;">Photos</button>
-                                <?php endif; ?>
-                                <a href="inventaire.php?onglet=cles&gerer_cle=<?= $ref['id_reference_cle'] ?>" class="btn btn-secondary">Gérer</a>
-                            </td>
-                        </tr>
-                        <?php if ($aDesPhotos) : ?>
-                        <tr id="<?= $idPhoto ?>" style="display:none;">
-                            <td colspan="4" style="padding:8px 12px; background:var(--color-background-secondary);">
-                                <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                                    <?php foreach (explode(';;', $ref['acces_photos']) as $detail) :
-                                        $parts = explode('||', $detail);
-                                        if (empty($parts[2])) continue;
-                                    ?>
-                                        <div style="text-align:center; min-width:100px;">
-                                            <a href="assets/uploads/portes/<?= htmlspecialchars($parts[2]) ?>" target="_blank">
-                                                <img src="assets/uploads/portes/<?= htmlspecialchars($parts[2]) ?>"
-                                                    style="width:100px; height:75px; object-fit:cover; border-radius:6px; border:0.5px solid var(--color-border-tertiary);">
-                                            </a>
-                                            <p style="font-size:11px; color:var(--color-text-secondary); margin:4px 0 0;">
-                                                <?= htmlspecialchars($parts[1] ?: $parts[0]) ?>
-                                            </p>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </td>
-                        </tr>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                    }
+                    $idPhoto = 'inv-cle-' . $ref['id_reference_cle'];
+                ?>
+                    <tr>
+                        <td><?= htmlspecialchars($ref['reference_cle']) ?></td>
+                        <td><?= htmlspecialchars($ref['acces_batiments'] ?? '—') ?></td>
+                        <td><?= htmlspecialchars($ref['commentaire'] ?? '') ?></td>
+                        <td>
+                            <?php if ($aDesPhotos) : ?>
+                                <button type="button" class="btn btn-secondary"
+                                    onclick="activerPhotos('<?= $idPhoto ?>', this)"
+                                    style="white-space:nowrap;">Photos</button>
+                            <?php endif; ?>
+                            <a href="inventaire.php?onglet=cles&gerer_cle=<?= $ref['id_reference_cle'] ?>" class="btn btn-secondary">Gérer</a>
+                        </td>
+                    </tr>
+                    <?php if ($aDesPhotos) : ?>
+                    <tr id="<?= $idPhoto ?>" style="display:none;">
+                        <td colspan="4" style="padding:8px 12px; background:var(--color-background-secondary);">
+                            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                                <?php foreach (explode(';;', $ref['acces_photos']) as $detail) :
+                                    $parts = explode('||', $detail);
+                                    if (empty($parts[2])) continue;
+                                ?>
+                                    <div style="text-align:center; min-width:100px;">
+                                        <a href="assets/uploads/portes/<?= htmlspecialchars($parts[2]) ?>" target="_blank">
+                                            <img src="assets/uploads/portes/<?= htmlspecialchars($parts[2]) ?>"
+                                                style="width:100px; height:75px; object-fit:cover; border-radius:6px; border:0.5px solid var(--color-border-tertiary);">
+                                        </a>
+                                        <p style="font-size:11px; color:var(--color-text-secondary); margin:4px 0 0;">
+                                            <?= htmlspecialchars($parts[0] . (!empty($parts[1]) ? ' — ' . $parts[1] : '')) ?>
+                                        </p>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
+                <?php endforeach; ?>
             </tbody>
         </table>
+        <?php endif; ?>
+
+        <!-- Clés sans accès -->
+        <?php if (!empty($refs_sans_acces)) : ?>
+        <h3 style="margin-bottom:8px;">Sans accès renseigné (<?= count($refs_sans_acces) ?>)</h3>
+        <p style="font-size:13px; color:var(--color-text-secondary); margin-bottom:8px;">Les accès peuvent être renseignés ultérieurement via le bouton Gérer.</p>
+        <table>
+            <thead><tr><th>Référence</th><th>Commentaire</th><th></th></tr></thead>
+            <tbody>
+                <?php foreach ($refs_sans_acces as $ref) : ?>
+                    <tr>
+                        <td><?= htmlspecialchars($ref['reference_cle']) ?></td>
+                        <td><?= htmlspecialchars($ref['commentaire'] ?? '') ?></td>
+                        <td>
+                            <a href="inventaire.php?onglet=cles&gerer_cle=<?= $ref['id_reference_cle'] ?>" class="btn btn-secondary">Gérer</a>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
+
     </div>
 </div>
 
