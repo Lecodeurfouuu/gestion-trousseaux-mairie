@@ -73,25 +73,25 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_badge'])) {
 function insererAccesElement(PDO $pdo, string $type, int $id_element, int $id_batiment, int $id_porte): void {
     // Si id_porte = 0 → "Toutes les portes" → insérer une ligne par porte réelle du bâtiment
     if ($id_porte === 0) {
-        $stmtPortes = $pdo->prepare("
+        $fctPortes = $pdo->prepare("
             SELECT id_porte FROM portes WHERE id_batiment = :id_batiment
         ");
-        $stmtPortes->execute([':id_batiment' => $id_batiment]);
-        $portesReelles = $stmtPortes->fetchAll(PDO::FETCH_COLUMN);
+        $fctPortes->execute([':id_batiment' => $id_batiment]);
+        $portesReelles = $fctPortes->fetchAll(PDO::FETCH_COLUMN);
 
         foreach ($portesReelles as $idPorteReelle) {
             if ($type === 'cle') {
-                $stmt = $pdo->prepare("
+                $fct = $pdo->prepare("
                     INSERT IGNORE INTO element_acces (type_element, id_reference_cle, id_batiment, id_porte)
                     VALUES ('cle', :id_element, :id_batiment, :id_porte)
                 ");
             } else {
-                $stmt = $pdo->prepare("
+                $fct = $pdo->prepare("
                     INSERT IGNORE INTO element_acces (type_element, id_badge, id_batiment, id_porte)
                     VALUES ('badge', :id_element, :id_batiment, :id_porte)
                 ");
             }
-            $stmt->execute([
+            $fct->execute([
                 ':id_element'  => $id_element,
                 ':id_batiment' => $id_batiment,
                 ':id_porte'    => $idPorteReelle
@@ -100,17 +100,17 @@ function insererAccesElement(PDO $pdo, string $type, int $id_element, int $id_ba
     } else {
         // Insertion normale
         if ($type === 'cle') {
-            $stmt = $pdo->prepare("
+            $fct = $pdo->prepare("
                 INSERT INTO element_acces (type_element, id_reference_cle, id_batiment, id_porte)
                 VALUES ('cle', :id_element, :id_batiment, :id_porte)
             ");
         } else {
-            $stmt = $pdo->prepare("
+            $fct = $pdo->prepare("
                 INSERT INTO element_acces (type_element, id_badge, id_batiment, id_porte)
                 VALUES ('badge', :id_element, :id_batiment, :id_porte)
             ");
         }
-        $stmt->execute([
+        $fct->execute([
             ':id_element'  => $id_element,
             ':id_batiment' => $id_batiment,
             ':id_porte'    => $id_porte > 0 ? $id_porte : null
