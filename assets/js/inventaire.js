@@ -52,3 +52,27 @@ function mettreAJourPortes(selectBat, selectPorteId) {
     });
     selectPorte.innerHTML = options;
 }
+
+// Assurer l'affichage du bon onglet côté client (au cas où le rendu serveur n'aurait
+// pas masqué correctement les sections). Utilise le paramètre `onglet` dans l'URL.
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const onglet = params.get('onglet') || 'cles';
+
+        document.querySelectorAll('.tab-content').forEach(function (el) {
+            if (el.id === 'tab-' + onglet) {
+                el.style.display = '';
+            } else {
+                el.style.display = 'none';
+            }
+        });
+
+        document.querySelectorAll('.tab-lien').forEach(function (link) {
+            link.classList.toggle('active', link.href.includes('onglet=' + onglet));
+        });
+    } catch (e) {
+        // noop
+        console.error('inventaire.js: erreur lors du réglage de l\'onglet actif', e);
+    }
+});
