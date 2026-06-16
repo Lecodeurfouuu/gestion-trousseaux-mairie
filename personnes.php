@@ -9,6 +9,8 @@ $message = "";
 
 // Ajout d'une personne
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifierTokenCSRF();
+
     $nom              = trim($_POST['nom'] ?? '');
     $prenom           = trim($_POST['prenom'] ?? '');
     $service          = trim($_POST['service'] ?? '');
@@ -86,6 +88,7 @@ try {
 <div class="card">
     <h2>Ajouter une personne</h2>
     <form method="POST" action="personnes.php">
+        <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
         <label>Nom *</label>
         <input type="text" name="nom" required>
         <label>Prénom *</label>
