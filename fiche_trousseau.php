@@ -28,6 +28,7 @@ if (isset($_GET['success']) && $_GET['success'] === 'element_ajoute') {
 
 // Ajout d'un élément dans le trousseau
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_element'])) {
+    verifierTokenCSRF();
     $type_element = $_POST['type_element'] ?? '';
     $id_reference_cle = $_POST['id_reference_cle'] ?? null;
     $id_badge = $_POST['id_badge'] ?? null;
@@ -136,6 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_element'])) {
 
 //Retirer un élément du trousseau
 if ($_SERVER['REQUEST_METHOD'] === "POST" && isset($_POST['retirer_element'])) {
+    verifierTokenCSRF();
     $id_trousseau_element = $_POST['id_trousseau_element'] ?? null;
     if (empty($id_trousseau_element)) {
         $message = 'Elément introuvable.';
@@ -177,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === "POST" && isset($_POST['retirer_element'])) {
 
 // Déclarer un élément perdu
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['declarer_element_perdu'])) {
+    verifierTokenCSRF();
     $id_trousseau_element = $_POST['id_trousseau_element'] ?? null;
 
     if (empty($id_trousseau_element)) {
@@ -225,6 +228,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['declarer_element_perd
 // Déclarer le trousseau perdu
 // Marquer le trousseau comme retrouvé
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trousseau_retrouve'])) {
+    verifierTokenCSRF();
     try {
         // Vérifier s'il y avait un détenteur actif avant la perte
         $requeteVerifDetenteur = $pdo->prepare("
@@ -257,6 +261,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['trousseau_retrouve'])
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['declarer_trousseau_perdu'])) {
+    verifierTokenCSRF();
     try {
         // Mettre le trousseau en statut Perdu
         $requeteTrousseauPerdu = $pdo->prepare("
@@ -295,6 +300,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['declarer_trousseau_pe
 
 //Attribuer le trousseau à une personne
 if ($_SERVER['REQUEST_METHOD'] === "POST" && isset($_POST['attribuer_trousseau'])) {
+    verifierTokenCSRF();
     $id_personne = $_POST['id_personne'] ?? null;
     $date_remise = $_POST['date_remise'] ?? date('Y-m-d');
     $decharge_signee = $_POST['decharge_signee'] ?? '0';
@@ -356,6 +362,7 @@ if ($_SERVER['REQUEST_METHOD'] === "POST" && isset($_POST['attribuer_trousseau']
 
 // Signer la décharge
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signer_decharge'])) {
+    verifierTokenCSRF();
     try {
         $requeteSignerDecharge = $pdo->prepare("
             UPDATE historique_trousseaux
@@ -373,6 +380,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['signer_decharge'])) {
 //Restituer le trousseau
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['restituer_trousseau'])) {
+    verifierTokenCSRF();
     $date_restitution = $_POST['date_restitution'] ?? date('Y-m-d');
     $commentaire_restitution = trim($_POST['commentaire_restitution'] ?? '');
 
@@ -418,6 +426,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['restituer_trousseau'])
 
 // Modifier les horaires d'un badge dans le trousseau
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_horaires'])) {
+    verifierTokenCSRF();
     $id_trousseau_element = $_POST['id_trousseau_element'] ?? null;
     $nouveaux_horaires    = trim($_POST['nouveaux_horaires'] ?? '');
 
@@ -651,6 +660,7 @@ try {
         <?= afficherDecharge($trousseau['decharge_signee']) ?>
         <?php if ($trousseau['statut'] === 'Attribué' && (int)$trousseau['decharge_signee'] !== 1) : ?>
             <form method="POST" action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=informations" style="display:inline-block; margin-left:10px;">
+                <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
                 <input type="hidden" name="signer_decharge" value="1">
                 <button type="submit" class="btn btn-success">Marquer comme signée</button>
             </form>
@@ -667,6 +677,7 @@ try {
             style="display:inline-block;"
             onsubmit="return confirm('Confirmer la perte de ce trousseau ?');"
         >
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="declarer_trousseau_perdu" value="1">
             <button type="submit" class="btn btn-danger">Déclarer le trousseau perdu</button>
         </form>
@@ -678,6 +689,7 @@ try {
             style="display:inline-block;"
             onsubmit="return confirm('Marquer ce trousseau comme retrouvé ?');"
         >
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="trousseau_retrouve" value="1">
             <button type="submit" class="btn btn-success">Marquer comme retrouvé</button>
         </form>
@@ -688,6 +700,7 @@ try {
 <div class="card">
     <h2>Attribuer le trousseau</h2>
     <form method="POST" action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=informations">
+        <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
         <input type="hidden" name="attribuer_trousseau" value="1">
         <label>Personne *</label>
         <select name="id_personne" required>
@@ -716,6 +729,7 @@ try {
 <div class="card">
     <h2>Restitution du trousseau</h2>
     <form method="POST" action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=informations" onsubmit="return confirm('Confirmer la restitution de ce trousseau ?');">
+        <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
         <input type="hidden" name="restituer_trousseau" value="1">
         <label>Date restitution</label>
         <input type="date" name="date_restitution" value="<?= date('Y-m-d') ?>" required>
@@ -740,6 +754,7 @@ try {
 <div class="card">
     <h2>Ajouter un élément au trousseau</h2>
     <form method="POST" action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=contenu">
+        <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
         <input type="hidden" name="ajouter_element" value="1">
         <label>Type d'élément *</label>
         <select name="type_element" id="type_element" required onchange="basculerChamps(this.value)">
@@ -825,6 +840,7 @@ try {
                                 <form method="POST"
                                     action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=contenu"
                                     style="display:flex; gap:6px; align-items:center;">
+                                    <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
                                     <input type="hidden" name="modifier_horaires" value="1">
                                     <input type="hidden" name="id_trousseau_element" value="<?= htmlspecialchars($element['id_trousseau_element']) ?>">
                                     <input type="text" name="nouveaux_horaires"
@@ -860,6 +876,7 @@ try {
                                     action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=contenu"
                                     style="display:inline-block;"
                                     onsubmit="return confirm('Retirer cet élément du trousseau ?');">
+                                    <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
                                     <input type="hidden" name="retirer_element" value="1">
                                     <input type="hidden" name="id_trousseau_element" value="<?= htmlspecialchars($element['id_trousseau_element']) ?>">
                                     <button type="submit" class="btn btn-secondary">Retirer</button>
@@ -868,6 +885,7 @@ try {
                                     action="fiche_trousseau.php?id=<?= urlencode($id_trousseau) ?>&onglet=contenu"
                                     style="display:inline-block;"
                                     onsubmit="return confirm('Déclarer cet élément comme perdu ?');">
+                                    <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
                                     <input type="hidden" name="declarer_element_perdu" value="1">
                                     <input type="hidden" name="id_trousseau_element" value="<?= htmlspecialchars($element['id_trousseau_element']) ?>">
                                     <button type="submit" class="btn btn-danger">Perdu</button>

@@ -11,6 +11,7 @@ $gerer_badge = (int)($_GET['gerer_badge'] ?? 0);
 
 // Supprimer un accès
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['supprimer_acces'])) {
+    verifierTokenCSRF();
     $id_element_acces = (int)($_POST['id_element_acces'] ?? 0);
     if ($id_element_acces > 0) {
         try {
@@ -25,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['supprimer_acces'])) {
 
 // Modifier le nom/commentaire d'une référence de clé
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_reference'])) {
+    verifierTokenCSRF();
     $id_reference_cle = (int)($_POST['id_reference_cle'] ?? 0);
     $nouvelle_nom = trim($_POST['nouvelle_reference'] ?? '');
     $nouveau_commentaire = trim($_POST['nouveau_commentaire'] ?? '');
@@ -47,7 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_reference'])
 }
 
 // Modifier l'identifiant d'un badge
-if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_badge'])) {
+if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_badge_info'])) {
+    verifierTokenCSRF();
     $id_badge = (int)($_POST['id_badge'] ?? 0);
     $nouvel_identifiant_interne = trim($_POST['nouvel_identifiant_interne'] ?? '');
 
@@ -119,6 +122,7 @@ function insererAccesElement(PDO $pdo, string $type, int $id_element, int $id_ba
 }
 
 if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant'])) {
+    verifierTokenCSRF();
     $type_element      = $_POST['type_element_acces'] ?? '';
     $id_element        = (int)($_POST['id_element_acces_existant'] ?? 0);
     $id_batiment_acces = (int)($_POST['id_batiment_acces'] ?? 0);
@@ -168,6 +172,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant
 // Badge retrouvé
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['badge_retrouve'])) {
+    verifierTokenCSRF();
     $id_badge_retrouve = (int)($_POST['id_badge_retrouve'] ?? 0);
     if ($id_badge_retrouve > 0) {
         try {
@@ -186,6 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['badge_retrouve'])) {
 // Ajout d'une porte à un bâtiment
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_porte'])) {
+    verifierTokenCSRF();
     $id_batiment_porte = (int)($_POST['id_batiment_porte'] ?? 0);
     $nom_porte = trim($_POST['nom_porte'] ?? '');
 
@@ -224,6 +230,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_porte'])) {
 // Modification d'une porte
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_porte'])) {
+    verifierTokenCSRF();
     $id_porte    = (int)($_POST['id_porte'] ?? 0);
     $nouveau_nom = trim($_POST['nouveau_nom_porte'] ?? '');
 
@@ -262,6 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['modifier_porte'])) {
 // Ajout d'une référence de clé + accès
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_reference'])) {
+    verifierTokenCSRF();
     $reference_cle = trim($_POST['reference_cle'] ?? '');
     $commentaire = trim($_POST['commentaire'] ?? '');
     $acces_batiments = $_POST['acces_batiment'] ?? [];
@@ -310,6 +318,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_reference']))
 // Ajout d'un badge + accès
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_badge'])) {
+    verifierTokenCSRF();
     $identifiant_interne  = trim($_POST['identifiant_interne'] ?? '');
     $type_badge = trim($_POST['type_badge'] ?? '');
     $acces_batiments = $_POST['acces_batiment'] ?? [];
@@ -357,6 +366,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_badge'])) {
 
 // Ajout d'un bâtiment
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_batiment'])) {
+    verifierTokenCSRF();
     $nom_batiment = trim($_POST['nom_batiment'] ?? '');
     $adresse = trim($_POST['adresse'] ?? '');
     $commentaire = trim($_POST['commentaire'] ?? '');
@@ -538,6 +548,7 @@ try {
     <div class="card">
         <h2>Ajouter une référence de clé</h2>
         <form method="POST" action="inventaire.php?onglet=cles">
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="ajouter_reference" value="1">
             <label>Référence de clé *</label>
             <input type="text" name="reference_cle" placeholder="Ex : REF-45" required>
@@ -653,6 +664,7 @@ try {
         <!-- Modifier les infos -->
         <h3>Modifier les informations</h3>
         <form method="POST" action="inventaire.php?onglet=cles&gerer_cle=<?= $gerer_cle ?>">
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="modifier_reference" value="1">
             <input type="hidden" name="id_reference_cle" value="<?= $gerer_cle ?>">
             <label>Référence</label>
@@ -677,7 +689,8 @@ try {
                             <td>
                                 <form method="POST" action="inventaire.php?onglet=cles&gerer_cle=<?= $gerer_cle ?>"
                                     onsubmit="return confirm('Supprimer cet accès ?');">
-                                    <input type="hidden" name="supprimer_acces" value="1">
+                                    <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
+            <input type="hidden" name="supprimer_acces" value="1">
                                     <input type="hidden" name="id_element_acces" value="<?= $acces['id_element_acces'] ?>">
                                     <button type="submit" class="btn btn-danger">Supprimer</button>
                                 </form>
@@ -691,6 +704,7 @@ try {
         <!-- Ajouter un accès -->
         <h3 style="margin-top:14px;">Ajouter un accès</h3>
         <form method="POST" action="inventaire.php?onglet=cles&gerer_cle=<?= $gerer_cle ?>">
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="ajouter_acces_existant" value="1">
             <input type="hidden" name="type_element_acces" value="cle">
             <input type="hidden" name="id_element_acces_existant" value="<?= $gerer_cle ?>">
@@ -720,6 +734,7 @@ try {
     <div class="card">
         <h2>Ajouter un badge</h2>
         <form method="POST" action="inventaire.php?onglet=badges">
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="ajouter_badge" value="1">
             <label>Type de badge *</label>
             <select name="type_badge" required>
@@ -760,7 +775,8 @@ try {
                                     <form method="POST" action="inventaire.php?onglet=badges"
                                         style="display:inline-block;"
                                         onsubmit="return confirm('Marquer ce badge comme retrouvé ?');">
-                                        <input type="hidden" name="badge_retrouve" value="1">
+                                        <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
+            <input type="hidden" name="badge_retrouve" value="1">
                                         <input type="hidden" name="id_badge_retrouve" value="<?= (int)$badge['id_badge'] ?>">
                                         <button type="submit" class="btn btn-success">Retrouvé</button>
                                     </form>
@@ -780,6 +796,7 @@ try {
         <!-- Modifier les infos -->
         <h3>Modifier les informations</h3>
         <form method="POST" action="inventaire.php?onglet=badges&gerer_badge=<?= $gerer_badge ?>">
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="modifier_badge_info" value="1">
             <input type="hidden" name="id_badge" value="<?= $gerer_badge ?>">
             <label>Identifiant interne</label>
@@ -802,7 +819,8 @@ try {
                             <td>
                                 <form method="POST" action="inventaire.php?onglet=badges&gerer_badge=<?= $gerer_badge ?>"
                                     onsubmit="return confirm('Supprimer cet accès ?');">
-                                    <input type="hidden" name="supprimer_acces" value="1">
+                                    <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
+            <input type="hidden" name="supprimer_acces" value="1">
                                     <input type="hidden" name="id_element_acces" value="<?= $acces['id_element_acces'] ?>">
                                     <button type="submit" class="btn btn-danger">Supprimer</button>
                                 </form>
@@ -816,6 +834,7 @@ try {
         <!-- Ajouter un accès -->
         <h3 style="margin-top:14px;">Ajouter un accès</h3>
         <form method="POST" action="inventaire.php?onglet=badges&gerer_badge=<?= $gerer_badge ?>">
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="ajouter_acces_existant" value="1">
             <input type="hidden" name="type_element_acces" value="badge">
             <input type="hidden" name="id_element_acces_existant" value="<?= $gerer_badge ?>">
@@ -847,6 +866,7 @@ try {
     <div class="card">
         <h2>Ajouter un bâtiment</h2>
         <form method="POST" action="inventaire.php?onglet=batiments">
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="ajouter_batiment" value="1">
             <label>Nom du bâtiment *</label>
             <input type="text" name="nom_batiment" placeholder="Ex : Salle Aragon, Mairie..." required>
@@ -862,6 +882,7 @@ try {
     <div class="card">
         <h2>Ajouter une porte</h2>
         <form method="POST" action="inventaire.php?onglet=batiments" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
             <input type="hidden" name="ajouter_porte" value="1">
             <label>Bâtiment *</label>
             <select name="id_batiment_porte" required>
@@ -905,7 +926,8 @@ try {
                                 <form method="POST" action="inventaire.php?onglet=batiments"
                                     enctype="multipart/form-data"
                                     style="display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap;">
-                                    <input type="hidden" name="modifier_porte" value="1">
+                                    <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
+            <input type="hidden" name="modifier_porte" value="1">
                                     <input type="hidden" name="id_porte" value="<?= $porte['id_porte'] ?>">
                                     <input type="hidden" name="photo_actuelle" value="<?= htmlspecialchars($porte['photo'] ?? '') ?>">
                                     <input type="text" name="nouveau_nom_porte"

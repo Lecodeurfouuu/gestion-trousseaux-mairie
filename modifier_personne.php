@@ -20,6 +20,8 @@ if ($id_personne === null || !is_numeric($id_personne)) {
 
 // Mise à jour de la personne
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verifierTokenCSRF();
+
     $nom              = trim($_POST['nom'] ?? '');
     $prenom           = trim($_POST['prenom'] ?? '');
     $service          = trim($_POST['service'] ?? '');
@@ -117,6 +119,7 @@ try {
     <h2>Informations de la personne</h2>
 
     <form method="POST" action="modifier_personne.php?id=<?= urlencode($id_personne) ?>">
+        <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
         <label>Nom *</label>
         <input type="text" name="nom" value="<?= htmlspecialchars($personne['nom']) ?>" required>
 
