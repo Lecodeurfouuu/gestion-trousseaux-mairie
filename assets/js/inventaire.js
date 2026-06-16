@@ -76,10 +76,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 const url = new URL(link.href, window.location.origin);
                 const newOnglet = url.searchParams.get('onglet') || 'cles';
                 // Mettre à jour l'URL sans recharger
-                window.history.pushState({ onglet: newOnglet }, '', url.pathname + '?onglet=' + newOnglet);
+                window.history.pushState(
+                    { onglet: newOnglet },
+                    '',
+                    url.pathname + '?onglet=' + newOnglet
+                );
                 // Afficher le bon panneau
                 document.querySelectorAll('.tab-content').forEach(function (el) {
-                    el.style.display = (el.id === 'tab-' + newOnglet) ? '' : 'none';
+                    el.style.display = el.id === 'tab-' + newOnglet ? '' : 'none';
                 });
                 document.querySelectorAll('.tab-lien').forEach(function (l) {
                     l.classList.toggle('active', l === link);
@@ -89,9 +93,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Gérer navigation par historique (back/forward)
         window.addEventListener('popstate', function (e) {
-            const ongletPop = (e.state && e.state.onglet) || (new URLSearchParams(window.location.search).get('onglet')) || 'cles';
+            const ongletPop =
+                (e.state && e.state.onglet) ||
+                new URLSearchParams(window.location.search).get('onglet') ||
+                'cles';
             document.querySelectorAll('.tab-content').forEach(function (el) {
-                el.style.display = (el.id === 'tab-' + ongletPop) ? '' : 'none';
+                el.style.display = el.id === 'tab-' + ongletPop ? '' : 'none';
             });
             document.querySelectorAll('.tab-lien').forEach(function (l) {
                 l.classList.toggle('active', l.href.includes('onglet=' + ongletPop));
