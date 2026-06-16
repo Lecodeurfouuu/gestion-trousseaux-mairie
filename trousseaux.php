@@ -12,8 +12,6 @@ $prochainNumero = genererNumeroTrousseau($pdo);
 
 // Ajout d'un trousseau
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  verifierTokenCSRF();
-
   $numero_trousseau = trim($_POST['numero_trousseau'] ?? '');
   $statut = trim($_POST['statut'] ?? 'Disponible');
   $commentaire = trim($_POST['commentaire'] ?? '');
@@ -96,7 +94,6 @@ try {
     <h2>Ajouter un trousseau</h2>
 
     <form method="POST" action="trousseaux.php">
-      <input type="hidden" name="csrf_token" value="<?= genererTokenCSRF() ?>">
       <label>Numéro de trousseau</label>
       <input type="text" name="numero_trousseau"
              value="<?= htmlspecialchars($prochainNumero) ?>"

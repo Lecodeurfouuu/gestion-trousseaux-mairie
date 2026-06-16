@@ -1,9 +1,4 @@
 <?php
-// En-têtes de sécurité HTTP
-header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self';");
-header("X-Frame-Options: DENY");
-header("X-Content-Type-Options: nosniff");
-
 if (!isset($page_title)) {
     $page_title = "Application gestion Badge / Clé";
 }
