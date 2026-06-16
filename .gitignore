@@ -1,0 +1,11 @@
+.vscode/settings.json
+.prettierrc
+.gitignore
+.idea/
+# Uploaded images and generated thumbnails
+assets/uploads/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
