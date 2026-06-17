@@ -128,9 +128,6 @@ if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajouter_acces_existant
     $id_batiment_acces = (int)($_POST['id_batiment_acces'] ?? 0);
     $id_porte_raw      = $_POST['id_porte_acces'] ?? '';
 
-    // DEBUG: log received values to error_log to diagnose issues
-    error_log("[DEBUG] ajouter_acces_existant - type_element=" . json_encode($type_element) . ", id_element=" . $id_element . ", id_batiment=" . $id_batiment_acces . ", id_porte_raw='" . strval($id_porte_raw) . "'");
-
     // Bloquer si aucune porte sélectionnée
     if ($id_porte_raw === '') {
         $message = "Veuillez sélectionner une porte (ou choisir 'Toutes les portes').";

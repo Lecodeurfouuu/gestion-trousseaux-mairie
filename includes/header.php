@@ -1,6 +1,6 @@
 <?php
 // En-têtes de sécurité HTTP
-header("Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'none'; form-action 'self';");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; form-action 'self';");
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
 
